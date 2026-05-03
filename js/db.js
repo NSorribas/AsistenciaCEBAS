@@ -7,6 +7,12 @@ const DB = {
   client: null,
   connected: false,
 
+  // ---- Hardcoded credentials (auto-connect from any device) ----
+  // The anon key is public by design - it's sent in every browser request anyway.
+  // Replace these values with your actual Supabase project credentials:
+  DEFAULT_URL: 'https://zkrtvxuxmwhilhunapoj.supabase.co',
+  DEFAULT_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcnR2eHV4bXdoaWxodW5hcG9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NDI0ODgsImV4cCI6MjA5MzQxODQ4OH0.rGmDUeL0aeK3h2dQ433vgL4boF-3tUndidWpxmIfb90',
+
   // ---- Initialize Supabase Client ----
   init(url, key) {
     try {
@@ -45,8 +51,13 @@ const DB = {
     Utils.removeLocal('supabase_key');
   },
 
-  // ---- Restore from localStorage ----
+  // ---- Restore connection (hardcoded > localStorage > setup) ----
   restore() {
+    // Try hardcoded credentials first (works on any device)
+    if (this.DEFAULT_URL && this.DEFAULT_KEY) {
+      return this.init(this.DEFAULT_URL, this.DEFAULT_KEY);
+    }
+    // Fall back to localStorage
     const url = Utils.loadLocal('supabase_url');
     const key = Utils.loadLocal('supabase_key');
     if (url && key) {

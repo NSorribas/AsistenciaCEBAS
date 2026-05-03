@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CEBAS - Control de Asistencia</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+</head>
+<body>
+  <!-- Overlay for mobile sidebar -->
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="28" height="24" rx="3"/>
+          <line x1="2" y1="12" x2="30" y2="12"/>
+          <line x1="16" y1="4" x2="16" y2="12"/>
+        </svg>
+        <span class="sidebar-title">CEBAS</span>
+      </div>
+      <button id="sidebar-close" class="sidebar-close-btn" aria-label="Cerrar menú">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#/home" class="nav-item active" data-view="home">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Inicio</span>
+      </a>
+      <a href="#/attendance" class="nav-item" data-view="attendance">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Asistencia</span>
+      </a>
+      <a href="#/students" class="nav-item" data-view="students">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Alumnos</span>
+      </a>
+      <a href="#/schedule" class="nav-item" data-view="schedule">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Horarios</span>
+      </a>
+      <a href="#/reports" class="nav-item" data-view="reports">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Reportes</span>
+      </a>
+      <div class="nav-separator"></div>
+      <a href="#/settings" class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Configuraci&oacute;n</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <small>v1.0.0</small>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main id="main-content" class="main-content">
+    <!-- Top bar -->
+    <header class="topbar">
+      <button id="sidebar-toggle" class="topbar-menu-btn" aria-label="Abrir men&uacute;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <h1 id="page-title" class="topbar-title">Inicio</h1>
+      <div class="topbar-actions">
+        <span id="connection-status" class="status-dot offline" title="Sin conexi&oacute;n a base de datos"></span>
+      </div>
+    </header>
+
+    <!-- Views Container -->
+    <div id="views-container" class="views-container">
+
+      <!-- Setup View (first-time config) -->
+      <section id="view-setup" class="view active">
+        <div class="setup-container">
+          <div class="setup-card">
+            <div class="setup-icon">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--color-accent)" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <h2>Configurar Base de Datos</h2>
+            <p class="setup-desc">Para comenzar, necesit&aacute;s configurar la conexi&oacute;n a Supabase. Si a&uacute;n no ten&eacute;s un proyecto, seguí las instrucciones debajo.</p>
+            
+            <div class="setup-steps">
+              <h3>Pasos previos en Supabase</h3>
+              <ol>
+                <li>Cre&aacute; un proyecto en <a href="https://supabase.com" target="_blank">supabase.com</a></li>
+                <li>Copi&aacute; la URL del proyecto y la clave an&oacute;nima (anon key)</li>
+                <li>Ejecut&aacute; el SQL que aparece abajo en el SQL Editor de Supabase</li>
+                <li>Ingres&aacute; los datos de conexi&oacute;n aqu&iacute;</li>
+              </ol>
+            </div>
+
+            <div class="setup-sql">
+              <h3>SQL para crear las tablas</h3>
+              <button id="btn-copy-sql" class="btn btn-sm btn-outline">Copiar SQL</button>
+              <pre id="sql-code">-- =============================================
+-- CEBAS Asistencia - Esquema de Base de Datos
+-- Ejecutar en SQL Editor de Supabase
+-- =============================================
+
+-- Cursos
+CREATE TABLE IF NOT EXISTS courses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Materias
+CREATE TABLE IF NOT EXISTS subjects (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Alumnos
+CREATE TABLE IF NOT EXISTS students (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  apellido TEXT NOT NULL,
+  nombre TEXT NOT NULL,
+  dni TEXT NOT NULL,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'activo' CHECK (status IN ('activo', 'inactivo')),
+  fecha_ingreso DATE DEFAULT CURRENT_DATE,
+  fecha_egreso DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Horarios
+CREATE TABLE IF NOT EXISTS schedule (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  subject_id UUID REFERENCES subjects(id) ON DELETE SET NULL,
+  day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 1 AND 5),
+  hour_slot SMALLINT NOT NULL CHECK (hour_slot BETWEEN 1 AND 8),
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  is_recess BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(course_id, day_of_week, hour_slot)
+);
+
+-- Asistencia
+CREATE TABLE IF NOT EXISTS attendance (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  schedule_id UUID REFERENCES schedule(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  present BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, schedule_id, date)
+);
+
+-- Feriados
+CREATE TABLE IF NOT EXISTS holidays (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  date DATE NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ausencias de docentes
+CREATE TABLE IF NOT EXISTS teacher_absences (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(subject_id, course_id, date)
+);
+
+-- Políticas RLS (habilitar acceso anónimo para simplificar)
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_absences ENABLE ROW LEVEL SECURITY;
+
+-- Permitir acceso completo con anon key
+CREATE POLICY "Allow all on courses" ON courses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);</pre>
+            </div>
+
+            <form id="setup-form" class="setup-form">
+              <div class="form-group">
+                <label for="supabase-url">URL del Proyecto Supabase</label>
+                <input type="url" id="supabase-url" placeholder="https://xxxxx.supabase.co" required>
+                <small>Ej: https://abcdef123456.supabase.co</small>
+              </div>
+              <div class="form-group">
+                <label for="supabase-key">Clave An&oacute;nima (anon key)</label>
+                <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1NiIs..." required>
+                <small>Se encuentra en Settings &gt; API &gt; anon public</small>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">Conectar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Home View -->
+      <section id="view-home" class="view">
+        <div class="home-container">
+          <div class="home-welcome">
+            <h2>Bienvenido al Sistema de Asistencia</h2>
+            <p>Seleccion&aacute; una opci&oacute;n del men&uacute; para comenzar.</p>
+          </div>
+          <div class="home-quick-actions">
+            <a href="#/attendance" class="home-action-card">
+              <div class="home-action-icon accent">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <h3>Tomar Asistencia</h3>
+              <p>Registrar la presencia de alumnos</p>
+            </a>
+            <a href="#/students" class="home-action-card">
+              <div class="home-action-icon success">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <h3>Alumnos</h3>
+              <p>Gestionar el listado de alumnos</p>
+            </a>
+            <a href="#/reports" class="home-action-card">
+              <div class="home-action-icon warning">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </div>
+              <h3>Reportes</h3>
+              <p>Ver informes de inasistencias</p>
+            </a>
+          </div>
+          <div id="home-stats" class="home-stats">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Attendance View -->
+      <section id="view-attendance" class="view">
+        <div class="attendance-container">
+          <!-- Step 1: Select course & date -->
+          <div id="attendance-select" class="attendance-select">
+            <div class="attendance-form-row">
+              <div class="form-group">
+                <label for="att-course">Curso</label>
+                <select id="att-course" class="select-input">
+                  <option value="">Seleccionar curso...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="att-date">Fecha</label>
+                <input type="date" id="att-date" class="input-field">
+              </div>
+            </div>
+            <div id="att-schedule-info" class="att-schedule-info" style="display:none;">
+              <!-- Schedule summary for selected date -->
+            </div>
+            <div id="att-warnings" class="att-warnings" style="display:none;">
+              <!-- Holiday or teacher absence warnings -->
+            </div>
+            <button id="btn-load-attendance" class="btn btn-primary btn-lg btn-block" disabled>Cargar Listado</button>
+          </div>
+
+          <!-- Step 2: Mark attendance -->
+          <div id="attendance-mark" class="attendance-mark" style="display:none;">
+            <div class="attendance-toolbar">
+              <button id="btn-att-back" class="btn btn-outline btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+              <div class="attendance-toolbar-actions">
+                <button id="btn-mark-all-present" class="btn btn-sm btn-success">Todos Presentes</button>
+                <button id="btn-mark-all-absent" class="btn btn-sm btn-danger">Todos Ausentes</button>
+              </div>
+            </div>
+            <div class="attendance-summary">
+              <span id="att-present-count" class="att-count present">0 presentes</span>
+              <span id="att-absent-count" class="att-count absent">0 ausentes</span>
+            </div>
+            <div id="attendance-student-list" class="attendance-student-list">
+              <!-- Student cards with toggle buttons -->
+            </div>
+            <div class="attendance-save-bar">
+              <button id="btn-save-attendance" class="btn btn-primary btn-lg btn-block">Guardar Asistencia</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Students View -->
+      <section id="view-students" class="view">
+        <div class="students-container">
+          <div class="view-toolbar">
+            <div class="toolbar-left">
+              <div class="form-group" style="margin-bottom:0;flex:1;">
+                <input type="text" id="student-search" class="input-field" placeholder="Buscar alumno...">
+              </div>
+              <select id="student-filter-course" class="select-input" style="min-width:120px;">
+                <option value="">Todos los cursos</option>
+              </select>
+              <select id="student-filter-status" class="select-input" style="min-width:120px;">
+                <option value="">Todos</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+              </select>
+            </div>
+            <div class="toolbar-right">
+              <button id="btn-import-students" class="btn btn-outline btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importar XLSX
+              </button>
+              <button id="btn-add-student" class="btn btn-primary btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nuevo Alumno
+              </button>
+            </div>
+          </div>
+          <div id="students-list" class="students-list">
+            <!-- Student cards -->
+          </div>
+          <input type="file" id="file-import-xlsx" accept=".xlsx,.xls" style="display:none;">
+        </div>
+      </section>
+
+      <!-- Schedule View -->
+      <section id="view-schedule" class="view">
+        <div class="schedule-container">
+          <div class="view-toolbar">
+            <div class="toolbar-left">
+              <select id="schedule-course" class="select-input">
+                <option value="">Seleccionar curso...</option>
+              </select>
+            </div>
+            <div class="toolbar-right">
+              <button id="btn-add-schedule-entry" class="btn btn-primary btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar Hora
+              </button>
+            </div>
+          </div>
+          <div id="schedule-grid" class="schedule-grid">
+            <!-- Schedule table -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports View -->
+      <section id="view-reports" class="view">
+        <div class="reports-container">
+          <div class="reports-filters">
+            <div class="form-group">
+              <label>Tipo de Reporte</label>
+              <select id="report-type" class="select-input">
+                <option value="by-student">Por Alumno</option>
+                <option value="by-course">Por Curso</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Curso</label>
+              <select id="report-course" class="select-input">
+                <option value="">Todos los cursos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Alumno</label>
+              <select id="report-student" class="select-input" disabled>
+                <option value="">Seleccionar alumno...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Per&iacute;odo</label>
+              <select id="report-period" class="select-input">
+                <option value="month">Mensual</option>
+                <option value="ytd">YTD (A&ntilde;o a la fecha)</option>
+                <option value="custom">Rango personalizado</option>
+              </select>
+            </div>
+            <div id="report-month-select" class="form-group">
+              <label>Mes</label>
+              <input type="month" id="report-month" class="input-field">
+            </div>
+            <div id="report-custom-range" class="form-group" style="display:none;">
+              <label>Desde</label>
+              <input type="date" id="report-from" class="input-field">
+              <label>Hasta</label>
+              <input type="date" id="report-to" class="input-field">
+            </div>
+            <button id="btn-generate-report" class="btn btn-primary btn-block">Generar Reporte</button>
+          </div>
+          <div id="report-results" class="report-results" style="display:none;">
+            <div class="report-header">
+              <h3 id="report-title"></h3>
+              <button id="btn-export-report" class="btn btn-outline btn-sm">Exportar XLSX</button>
+            </div>
+            <div id="report-chart-container" class="report-chart-container">
+              <canvas id="report-chart"></canvas>
+            </div>
+            <div id="report-table-container" class="report-table-container">
+              <!-- Report data table -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section id="view-settings" class="view">
+        <div class="settings-container">
+          <div class="settings-tabs">
+            <button class="settings-tab active" data-tab="tab-courses">Cursos</button>
+            <button class="settings-tab" data-tab="tab-subjects">Materias</button>
+            <button class="settings-tab" data-tab="tab-holidays">Feriados</button>
+            <button class="settings-tab" data-tab="tab-teacher-abs">Aus. Docentes</button>
+            <button class="settings-tab" data-tab="tab-db">Base de Datos</button>
+          </div>
+
+          <!-- Tab: Courses -->
+          <div id="tab-courses" class="settings-panel active">
+            <div class="settings-panel-header">
+              <h3>Cursos</h3>
+              <button class="btn btn-primary btn-sm btn-add-item" data-target="courses">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+            <div id="courses-list" class="settings-list">
+              <!-- Course items -->
+            </div>
+          </div>
+
+          <!-- Tab: Subjects -->
+          <div id="tab-subjects" class="settings-panel">
+            <div class="settings-panel-header">
+              <h3>Materias</h3>
+              <button class="btn btn-primary btn-sm btn-add-item" data-target="subjects">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+            <div id="subjects-list" class="settings-list">
+              <!-- Subject items -->
+            </div>
+          </div>
+
+          <!-- Tab: Holidays -->
+          <div id="tab-holidays" class="settings-panel">
+            <div class="settings-panel-header">
+              <h3>Feriados</h3>
+              <button class="btn btn-primary btn-sm btn-add-item" data-target="holidays">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+            <div id="holidays-list" class="settings-list">
+              <!-- Holiday items -->
+            </div>
+          </div>
+
+          <!-- Tab: Teacher Absences -->
+          <div id="tab-teacher-abs" class="settings-panel">
+            <div class="settings-panel-header">
+              <h3>Ausencias de Docentes</h3>
+              <button class="btn btn-primary btn-sm btn-add-item" data-target="teacher_absences">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+            <div id="teacher-abs-list" class="settings-list">
+              <!-- Teacher absence items -->
+            </div>
+          </div>
+
+          <!-- Tab: DB Connection -->
+          <div id="tab-db" class="settings-panel">
+            <div class="settings-panel-header">
+              <h3>Conexi&oacute;n a Base de Datos</h3>
+            </div>
+            <div class="settings-db-info">
+              <div class="form-group">
+                <label>URL del Proyecto</label>
+                <input type="text" id="settings-db-url" class="input-field" readonly>
+              </div>
+              <div class="form-group">
+                <label>Estado</label>
+                <span id="settings-db-status" class="badge badge-offline">Desconectado</span>
+              </div>
+              <button id="btn-test-connection" class="btn btn-outline">Probar Conexi&oacute;n</button>
+              <button id="btn-disconnect-db" class="btn btn-danger btn-sm" style="margin-top:1rem;">Desconectar y Reconfigurar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal Overlay -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div id="modal-content" class="modal-content">
+      <!-- Modal content injected dynamically -->
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- CDN Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/students.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/attendance.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

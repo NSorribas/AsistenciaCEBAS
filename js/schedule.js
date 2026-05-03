@@ -410,9 +410,9 @@ const Schedule = {
           { slot: 2, subject: 'Salud Pública' },
           { slot: 3, subject: 'Epidemiología' },
           { slot: 4, subject: 'Epidemiología' },
-          { slot: 6, subject: 'Psicología' },
-          { slot: 7, subject: 'Psicología' },
-          { slot: 8, subject: 'Psicología' },
+          { slot: 6, subject: 'Problemática Social Contemporánea' },
+          { slot: 7, subject: 'Problemática Social Contemporánea' },
+          { slot: 8, subject: 'Problemática Social Contemporánea' },
         ],
         4: [
           { slot: 1, subject: 'Lengua' },
@@ -426,8 +426,8 @@ const Schedule = {
         5: [
           { slot: 1, subject: 'Psicología' },
           { slot: 2, subject: 'Psicología' },
-          { slot: 3, subject: 'PP y PC' },
-          { slot: 4, subject: 'PP y PC' },
+          { slot: 3, subject: 'Políticas Públicas y Promoción Comunitaria' },
+          { slot: 4, subject: 'Políticas Públicas y Promoción Comunitaria' },
           { slot: 6, subject: 'Matemática' },
           { slot: 7, subject: 'Matemática' },
           { slot: 8, subject: 'Matemática' },

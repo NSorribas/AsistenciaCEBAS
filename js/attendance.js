@@ -235,7 +235,7 @@ const Attendance = {
         }
       }
 
-      const checked = hasAnyRecord ? isPresentOverall : true; // Default present
+      const checked = hasAnyRecord ? isPresentOverall : false; // Default absent
       const cardClass = checked ? '' : 'absent';
 
       return `

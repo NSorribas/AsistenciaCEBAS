@@ -137,6 +137,13 @@ a:hover {
   gap: 10px;
 }
 
+.sidebar-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
 .sidebar-title {
   font-size: 1.25rem;
   font-weight: 700;

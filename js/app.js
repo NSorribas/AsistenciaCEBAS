@@ -1,20 +1,26 @@
 /* =============================================
    CEBAS Asistencia - Main Application
    Routing, sidebar, initialization
+   Optimized: splash screen, event dedup, caching
    ============================================= */
 
 const App = {
   currentView: 'setup',
   views: ['setup', 'home', 'attendance', 'students', 'schedule', 'reports', 'settings'],
+  initialized: false,
+  dbReady: false,
 
   async init() {
-    this.bindEvents();
-    this.handleRouting();
+    // Show splash immediately, hide all views
+    this.showSplash();
 
-    // Try to restore DB connection
+    this.bindEvents();
+
+    // Try to restore DB connection (hardcoded > localStorage)
     if (DB.restore()) {
       const connected = await DB.testConnection();
       if (connected) {
+        this.dbReady = true;
         this.onDBConnected();
       } else {
         DB.disconnect();
@@ -23,9 +29,48 @@ const App = {
     } else {
       this.showView('setup');
     }
+
+    this.initialized = true;
+  },
+
+  showSplash() {
+    // Hide all views and show a loading state
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const topbar = document.querySelector('.topbar');
+    if (topbar) topbar.style.display = 'none';
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.style.visibility = 'hidden';
+
+    // Show splash overlay
+    let splash = document.getElementById('app-splash');
+    if (!splash) {
+      splash = document.createElement('div');
+      splash.id = 'app-splash';
+      splash.style.cssText = 'position:fixed;inset:0;background:rgba(14,47,68,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;gap:16px;';
+      splash.innerHTML = `
+        <svg viewBox="0 0 32 32" width="48" height="48" fill="none" stroke="#2E9CCA" stroke-width="2">
+          <rect x="2" y="4" width="28" height="24" rx="3"/><line x1="2" y1="12" x2="30" y2="12"/><line x1="16" y1="4" x2="16" y2="12"/>
+        </svg>
+        <span style="font-size:1.25rem;font-weight:700;letter-spacing:2px;">CEBAS</span>
+        <div class="spinner" style="border-top-color:#2E9CCA;"></div>
+      `;
+      document.body.appendChild(splash);
+    }
+  },
+
+  hideSplash() {
+    const splash = document.getElementById('app-splash');
+    if (splash) splash.remove();
+    const topbar = document.querySelector('.topbar');
+    if (topbar) topbar.style.display = '';
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.style.visibility = '';
   },
 
   bindEvents() {
+    if (this._eventsBound) return;
+    this._eventsBound = true;
+
     // Sidebar toggle
     document.getElementById('sidebar-toggle')?.addEventListener('click', () => this.toggleSidebar());
     document.getElementById('sidebar-close')?.addEventListener('click', () => this.closeSidebar());
@@ -44,7 +89,9 @@ const App = {
     });
 
     // Hash change
-    window.addEventListener('hashchange', () => this.handleRouting());
+    window.addEventListener('hashchange', () => {
+      if (this.dbReady) this.handleRouting();
+    });
 
     // Setup form
     document.getElementById('setup-form')?.addEventListener('submit', (e) => this.handleSetup(e));
@@ -57,12 +104,12 @@ const App = {
   handleRouting() {
     const hash = window.location.hash.replace('#/', '') || 'home';
 
-    if (!DB.connected && hash !== 'setup') {
+    if (!this.dbReady && hash !== 'setup') {
       this.showView('setup');
       return;
     }
 
-    if (DB.connected && hash === 'setup') {
+    if (this.dbReady && hash === 'setup') {
       this.showView('home');
       return;
     }
@@ -75,6 +122,8 @@ const App = {
       viewName = 'home';
     }
 
+    // Skip if already on this view (prevents redundant loads)
+    if (this.currentView === viewName && this.initialized) return;
     this.currentView = viewName;
 
     // Hide all views
@@ -114,22 +163,22 @@ const App = {
         await this.loadHomeStats();
         break;
       case 'attendance':
-        await Attendance.init();
+        Attendance.ensureInit();
         await Attendance.populateCourseSelect();
         break;
       case 'students':
-        await Students.init();
+        Students.ensureInit();
         break;
       case 'schedule':
-        await Schedule.init();
+        Schedule.ensureInit();
         await Schedule.populateCourseSelect();
         break;
       case 'reports':
-        await Reports.init();
+        Reports.ensureInit();
         await Reports.populateSelects();
         break;
       case 'settings':
-        await Config.init();
+        Config.ensureInit();
         await Config.loadAll();
         break;
     }
@@ -168,6 +217,7 @@ const App = {
       const connected = await DB.testConnection();
       if (connected) {
         Utils.toastSuccess('Conexión establecida');
+        this.dbReady = true;
         this.onDBConnected();
       } else {
         Utils.toastError('No se pudo conectar. Verificá la URL y la clave.');
@@ -186,7 +236,8 @@ const App = {
       connDot.title = 'Conectado a base de datos';
     }
 
-    // Show home
+    // Hide splash and show home
+    this.hideSplash();
     this.showView('home');
   },
 
@@ -196,7 +247,6 @@ const App = {
       navigator.clipboard.writeText(sqlCode.textContent).then(() => {
         Utils.toastSuccess('SQL copiado al portapapeles');
       }).catch(() => {
-        // Fallback
         const range = document.createRange();
         range.selectNodeContents(sqlCode);
         const sel = window.getSelection();

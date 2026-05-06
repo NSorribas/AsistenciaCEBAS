@@ -1,6 +1,7 @@
 /* =============================================
    CEBAS Asistencia - Database Module (Supabase)
    All CRUD operations for the application
+   Optimized: simple cache for frequently accessed data
    ============================================= */
 
 const DB = {
@@ -8,10 +9,42 @@ const DB = {
   connected: false,
 
   // ---- Hardcoded credentials (auto-connect from any device) ----
-  // The anon key is public by design - it's sent in every browser request anyway.
-  // Replace these values with your actual Supabase project credentials:
   DEFAULT_URL: 'https://zkrtvxuxmwhilhunapoj.supabase.co',
   DEFAULT_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcnR2eHV4bXdoaWxodW5hcG9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NDI0ODgsImV4cCI6MjA5MzQxODQ4OH0.rGmDUeL0aeK3h2dQ433vgL4boF-3tUndidWpxmIfb90',
+
+  // ---- Simple in-memory cache ----
+  _cache: {},
+  _cacheTTL: 30000, // 30 seconds
+
+  _cacheKey(table, filters = '') {
+    return `${table}_${JSON.stringify(filters)}`;
+  },
+
+  _getCached(key) {
+    const entry = this._cache[key];
+    if (!entry) return null;
+    if (Date.now() - entry.time > this._cacheTTL) {
+      delete this._cache[key];
+      return null;
+    }
+    return entry.data;
+  },
+
+  _setCache(key, data) {
+    this._cache[key] = { data, time: Date.now() };
+  },
+
+  clearCache(tables = null) {
+    if (!tables) {
+      this._cache = {};
+      return;
+    }
+    Object.keys(this._cache).forEach(k => {
+      if (tables.some(t => k.startsWith(t + '_'))) {
+        delete this._cache[k];
+      }
+    });
+  },
 
   // ---- Initialize Supabase Client ----
   init(url, key) {
@@ -47,17 +80,16 @@ const DB = {
   disconnect() {
     this.client = null;
     this.connected = false;
+    this._cache = {};
     Utils.removeLocal('supabase_url');
     Utils.removeLocal('supabase_key');
   },
 
   // ---- Restore connection (hardcoded > localStorage > setup) ----
   restore() {
-    // Try hardcoded credentials first (works on any device)
     if (this.DEFAULT_URL && this.DEFAULT_KEY) {
       return this.init(this.DEFAULT_URL, this.DEFAULT_KEY);
     }
-    // Fall back to localStorage
     const url = Utils.loadLocal('supabase_url');
     const key = Utils.loadLocal('supabase_key');
     if (url && key) {
@@ -66,17 +98,24 @@ const DB = {
     return false;
   },
 
-  // ===================== COURSES =====================
+  // ===================== COURSES (cached) =====================
   async getCourses() {
+    const key = this._cacheKey('courses');
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
     const { data, error } = await this.client
       .from('courses')
       .select('*')
       .order('name');
     if (error) throw error;
-    return data || [];
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
   },
 
   async addCourse(name) {
+    this.clearCache(['courses']);
     const { data, error } = await this.client
       .from('courses')
       .insert({ name })
@@ -87,6 +126,7 @@ const DB = {
   },
 
   async updateCourse(id, name) {
+    this.clearCache(['courses']);
     const { data, error } = await this.client
       .from('courses')
       .update({ name })
@@ -98,6 +138,7 @@ const DB = {
   },
 
   async deleteCourse(id) {
+    this.clearCache(['courses', 'students', 'schedule', 'attendance']);
     const { error } = await this.client
       .from('courses')
       .delete()
@@ -105,17 +146,24 @@ const DB = {
     if (error) throw error;
   },
 
-  // ===================== SUBJECTS =====================
+  // ===================== SUBJECTS (cached) =====================
   async getSubjects() {
+    const key = this._cacheKey('subjects');
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
     const { data, error } = await this.client
       .from('subjects')
       .select('*')
       .order('name');
     if (error) throw error;
-    return data || [];
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
   },
 
   async addSubject(name) {
+    this.clearCache(['subjects']);
     const { data, error } = await this.client
       .from('subjects')
       .insert({ name })
@@ -126,6 +174,7 @@ const DB = {
   },
 
   async updateSubject(id, name) {
+    this.clearCache(['subjects']);
     const { data, error } = await this.client
       .from('subjects')
       .update({ name })
@@ -137,6 +186,7 @@ const DB = {
   },
 
   async deleteSubject(id) {
+    this.clearCache(['subjects', 'schedule']);
     const { error } = await this.client
       .from('subjects')
       .delete()
@@ -144,8 +194,12 @@ const DB = {
     if (error) throw error;
   },
 
-  // ===================== STUDENTS =====================
+  // ===================== STUDENTS (cached) =====================
   async getStudents(filters = {}) {
+    const key = this._cacheKey('students', filters);
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
     let query = this.client
       .from('students')
       .select('*, courses(id, name)')
@@ -160,20 +214,13 @@ const DB = {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
-  },
-
-  async getStudentById(id) {
-    const { data, error } = await this.client
-      .from('students')
-      .select('*, courses(id, name)')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    return data;
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
   },
 
   async addStudent(student) {
+    this.clearCache(['students']);
     const { data, error } = await this.client
       .from('students')
       .insert(student)
@@ -184,6 +231,7 @@ const DB = {
   },
 
   async addStudentsBatch(students) {
+    this.clearCache(['students']);
     const { data, error } = await this.client
       .from('students')
       .insert(students)
@@ -193,6 +241,7 @@ const DB = {
   },
 
   async updateStudent(id, updates) {
+    this.clearCache(['students']);
     const { data, error } = await this.client
       .from('students')
       .update(updates)
@@ -204,6 +253,7 @@ const DB = {
   },
 
   async deleteStudent(id) {
+    this.clearCache(['students', 'attendance']);
     const { error } = await this.client
       .from('students')
       .delete()
@@ -211,8 +261,12 @@ const DB = {
     if (error) throw error;
   },
 
-  // ===================== SCHEDULE =====================
+  // ===================== SCHEDULE (cached per course) =====================
   async getSchedule(courseId) {
+    const key = this._cacheKey('schedule', { courseId });
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
     const { data, error } = await this.client
       .from('schedule')
       .select('*, subjects(id, name)')
@@ -220,7 +274,9 @@ const DB = {
       .order('day_of_week')
       .order('hour_slot');
     if (error) throw error;
-    return data || [];
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
   },
 
   async getAllSchedule() {
@@ -235,6 +291,7 @@ const DB = {
   },
 
   async addScheduleEntry(entry) {
+    this.clearCache(['schedule']);
     const { data, error } = await this.client
       .from('schedule')
       .insert(entry)
@@ -245,6 +302,7 @@ const DB = {
   },
 
   async addScheduleBatch(entries) {
+    this.clearCache(['schedule']);
     const { data, error } = await this.client
       .from('schedule')
       .insert(entries)
@@ -254,6 +312,7 @@ const DB = {
   },
 
   async updateScheduleEntry(id, updates) {
+    this.clearCache(['schedule']);
     const { data, error } = await this.client
       .from('schedule')
       .update(updates)
@@ -265,6 +324,7 @@ const DB = {
   },
 
   async deleteScheduleEntry(id) {
+    this.clearCache(['schedule', 'attendance']);
     const { error } = await this.client
       .from('schedule')
       .delete()
@@ -273,6 +333,7 @@ const DB = {
   },
 
   async deleteScheduleByCourse(courseId) {
+    this.clearCache(['schedule', 'attendance']);
     const { error } = await this.client
       .from('schedule')
       .delete()
@@ -298,11 +359,10 @@ const DB = {
   },
 
   async getAttendanceByCourseAndDate(courseId, date) {
-    // Get schedule for this course and day, then get attendance
-    const jsDay = Utils.getDayOfWeek(date); // 0=Sun, 1=Mon...
+    const jsDay = Utils.getDayOfWeek(date);
     if (jsDay === 0 || jsDay === 6) return { schedule: [], attendance: [] };
 
-    const dbDay = jsDay; // 1=Mon...5=Fri matches our DB
+    const dbDay = jsDay;
 
     const { data: scheduleData, error: schedErr } = await this.client
       .from('schedule')
@@ -313,7 +373,6 @@ const DB = {
     if (schedErr) throw schedErr;
 
     const scheduleIds = (scheduleData || []).map(s => s.id);
-
     if (scheduleIds.length === 0) return { schedule: scheduleData || [], attendance: [] };
 
     const { data: attData, error: attErr } = await this.client
@@ -327,7 +386,7 @@ const DB = {
   },
 
   async saveAttendance(records) {
-    // Upsert attendance records
+    this.clearCache(['attendance']);
     const { data, error } = await this.client
       .from('attendance')
       .upsert(records, { onConflict: 'student_id,schedule_id,date' })
@@ -338,6 +397,7 @@ const DB = {
 
   async deleteAttendanceByDate(date, scheduleIds) {
     if (!scheduleIds || scheduleIds.length === 0) return;
+    this.clearCache(['attendance']);
     const { error } = await this.client
       .from('attendance')
       .delete()
@@ -348,15 +408,22 @@ const DB = {
 
   // ===================== HOLIDAYS =====================
   async getHolidays() {
+    const key = this._cacheKey('holidays');
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
     const { data, error } = await this.client
       .from('holidays')
       .select('*')
       .order('date');
     if (error) throw error;
-    return data || [];
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
   },
 
   async addHoliday(date, description) {
+    this.clearCache(['holidays']);
     const { data, error } = await this.client
       .from('holidays')
       .insert({ date, description })
@@ -367,6 +434,7 @@ const DB = {
   },
 
   async deleteHoliday(id) {
+    this.clearCache(['holidays']);
     const { error } = await this.client
       .from('holidays')
       .delete()
@@ -375,13 +443,13 @@ const DB = {
   },
 
   async isHoliday(date) {
-    const { data, error } = await this.client
-      .from('holidays')
-      .select('id')
-      .eq('date', date)
-      .maybeSingle();
-    if (error) throw error;
-    return data !== null;
+    // Use cached holidays list instead of a separate query
+    try {
+      const holidays = await this.getHolidays();
+      return holidays.some(h => h.date === date);
+    } catch (e) {
+      return false;
+    }
   },
 
   // ===================== TEACHER ABSENCES =====================
@@ -401,6 +469,7 @@ const DB = {
   },
 
   async addTeacherAbsence(subjectId, courseId, date) {
+    this.clearCache(['teacher_absences']);
     const { data, error } = await this.client
       .from('teacher_absences')
       .insert({ subject_id: subjectId, course_id: courseId, date })
@@ -411,23 +480,12 @@ const DB = {
   },
 
   async deleteTeacherAbsence(id) {
+    this.clearCache(['teacher_absences']);
     const { error } = await this.client
       .from('teacher_absences')
       .delete()
       .eq('id', id);
     if (error) throw error;
-  },
-
-  async isTeacherAbsent(subjectId, courseId, date) {
-    const { data, error } = await this.client
-      .from('teacher_absences')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .eq('course_id', courseId)
-      .eq('date', date)
-      .maybeSingle();
-    if (error) throw error;
-    return data !== null;
   },
 
   // ===================== REPORTS =====================
@@ -440,7 +498,6 @@ const DB = {
         schedule(id, subject_id, hour_slot, is_recess, subjects(id, name))
       `);
 
-    // Filter out recess entries for reporting
     query = query.eq('schedule.is_recess', false);
 
     if (filters.dateFrom) query = query.gte('date', filters.dateFrom);
@@ -453,17 +510,25 @@ const DB = {
     return data || [];
   },
 
-  // ===================== STATS =====================
+  // ===================== STATS (optimized) =====================
   async getStats() {
     try {
-      const [courses, students, subjects] = await Promise.all([
+      // Use cached getCourses/getSubjects + lightweight count for students
+      const [courses, subjects] = await Promise.all([
         this.getCourses(),
-        this.getStudents({ status: 'activo' }),
         this.getSubjects()
       ]);
+
+      // Count active students efficiently
+      const { count, error } = await this.client
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'activo');
+      if (error) throw error;
+
       return {
         totalCourses: courses.length,
-        activeStudents: students.length,
+        activeStudents: count || 0,
         totalSubjects: subjects.length
       };
     } catch (e) {

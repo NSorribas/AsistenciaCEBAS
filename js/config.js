@@ -5,6 +5,16 @@
    ============================================= */
 
 const Config = {
+  _eventsBound: false,
+
+  ensureInit() {
+    if (!this._eventsBound) {
+      this.bindEvents();
+      this.bindTabs();
+      this._eventsBound = true;
+    }
+  },
+
   async init() {
     this.bindEvents();
     this.bindTabs();

@@ -1,33 +1,37 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Estado-En%20Desarrollo-2E9CCA?style=for-the-badge" alt="Estado">
-  <img src="https://img.shields.io/badge/Plataforma-GitHub%20Pages-0E2F44?style=for-the-badge" alt="Plataforma">
-  <img src="https://img.shields.io/badge/Base%20de%20Datos-Supabase-3ECF8E?style=for-the-badge" alt="Supabase">
+  <img src="assets/logo-cebas48.png" alt="CEBAS" width="80" height="80" style="border-radius:12px;object-fit:contain;">
 </p>
 
-<h1 align="center">📋 CEBAS - Sistema de Control de Asistencia</h1>
+<h1 align="center">CEBAS - Sistema de Control de Asistencia</h1>
 
 <p align="center">
   Aplicación web SPA para el registro y seguimiento de asistencia de alumnos,<br>
   diseñada para funcionar de forma óptima en dispositivos móviles.
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Estado-En%20Desarrollo-2E9CCA?style=for-the-badge" alt="Estado">
+  <img src="https://img.shields.io/badge/Plataforma-GitHub%20Pages-0E2F44?style=for-the-badge" alt="Plataforma">
+  <img src="https://img.shields.io/badge/Base%20de%20Datos-Supabase-3ECF8E?style=for-the-badge" alt="Supabase">
+</p>
+
 ---
 
-## 📱 Demo en vivo
+## Demo en vivo
 
-👉 **[https://nsorribas.github.io/AsistenciaCEBAS/](https://nsorribas.github.io/AsistenciaCEBAS/)**
+**[https://nsorribas.github.io/AsistenciaCEBAS/](https://nsorribas.github.io/AsistenciaCEBAS/)**
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
-### 👥 Gestión de Alumnos
+### Gestión de Alumnos
 - Alta individual con datos completos (apellido, nombre, DNI, curso, estado, fechas de ingreso/egreso)
 - Importación masiva desde archivo **XLSX** (Excel)
 - Búsqueda y filtros por curso y estado (activo/inactivo)
 - Activar/desactivar alumnos sin perder el historial
 
-### 📝 Toma de Asistencia
+### Toma de Asistencia
 - Selección de curso y fecha
 - Toggle **Presente/Ausente** por alumno (optimizado para uso en celular)
 - Botones de "Todos Presentes" y "Todos Ausentes"
@@ -36,14 +40,14 @@
 - Detección de **feriados** y **ausencias de docentes** (no computan inasistencias)
 - Resumen en tiempo real de presentes/ausentes
 
-### 🗓️ Horarios Escolares
+### Horarios Escolares
 - Configuración del horario anual por curso y por día
 - Grilla visual con las materias asignadas a cada hora
 - Carga predefinida del horario para los cursos 1A, 2A y 3A
 - Edición individual de cada celda del horario
 - Horas libres y recreos correctamente diferenciados
 
-### 📊 Reportes
+### Reportes
 - Reportes **por alumno** o **por curso**
 - Períodos: **Mensual**, **YTD** (año a la fecha) o **rango personalizado**
 - Desglose de inasistencias por materia
@@ -51,14 +55,14 @@
 - Gráficos de barras interactivos (Chart.js)
 - **Exportación a XLSX** de cualquier reporte
 
-### ⚙️ Configuración
+### Configuración
 - Gestión de **cursos**, **materias**, **feriados** y **ausencias de docentes**
 - Conexión a base de datos Supabase
 - Prueba de conexión y estado en tiempo real
 
 ---
 
-## 🛠️ Tecnologías
+## Tecnologías
 
 | Tecnología | Uso |
 |---|---|
@@ -70,7 +74,7 @@
 
 ---
 
-## 🚀 Puesta en marcha
+## Puesta en marcha
 
 La app ya está configurada y conectada a Supabase. Si necesitás recrear la base de datos o configurar un nuevo proyecto, seguí estos pasos:
 
@@ -183,48 +187,53 @@ DEFAULT_URL: 'https://TU-PROYECTO.supabase.co',
 DEFAULT_KEY: 'TU-ANON-KEY',
 ```
 
-La anon key se encuentra en **Settings → API → anon public**.
+La anon key se encuentra en **Settings > API > anon public**.
 
 ### 4. Cargar datos iniciales
 
-1. Ir a **Configuración → Cursos** y crear los cursos (1A, 2A, 3A)
-2. Ir a **Configuración → Materias** y crear las materias
-3. Ir a **Configuración → Cursos** y usar el botón ⬆️ "Cargar horario predefinido" para cada curso
-4. ¡Listo para tomar asistencia!
+1. Ir a **Configuración > Cursos** y crear los cursos (1A, 2A, 3A)
+2. Ir a **Configuración > Materias** y crear las materias
+3. Ir a **Configuración > Cursos** y usar el botón "Cargar horario predefinido" para cada curso
+4. Listo para tomar asistencia!
 
 ---
 
-## 📂 Estructura del proyecto
+## Estructura del proyecto
 
 ```
 AsistenciaCEBAS/
-├── index.html            # SPA principal (todas las vistas)
+├── index.html              # SPA principal (todas las vistas)
+├── assets/
+│   ├── favicon.svg         # Favicon SVG (principal)
+│   ├── favicon-16.png      # Favicon PNG 16x16
+│   ├── favicon.ico         # Favicon clásico
+│   └── logo-cebas48.png    # Logo del CEBAS
 ├── css/
-│   └── styles.css        # Estilos mobile-first responsive
+│   └── styles.css          # Estilos mobile-first responsive
 └── js/
-    ├── app.js            # Routing, sidebar, inicialización
-    ├── db.js             # Conexión Supabase y operaciones CRUD
-    ├── utils.js          # Toasts, modales, formateo, helpers
-    ├── students.js       # Gestión de alumnos
-    ├── schedule.js       # Horarios y carga predefinida
-    ├── attendance.js     # Toma de asistencia
-    ├── reports.js        # Reportes y exportación XLSX
-    └── config.js         # Cursos, materias, feriados, aus. docentes
+    ├── app.js              # Routing, sidebar, splash screen, inicialización
+    ├── db.js               # Conexión Supabase y operaciones CRUD
+    ├── utils.js            # Toasts, modales, formateo, helpers
+    ├── students.js         # Gestión de alumnos
+    ├── schedule.js         # Horarios y carga predefinida
+    ├── attendance.js       # Toma de asistencia
+    ├── reports.js          # Reportes y exportación XLSX
+    └── config.js           # Cursos, materias, feriados, aus. docentes
 ```
 
 ---
 
-## 📐 Diseño
+## Diseño
 
 - **Color principal:** `rgba(14, 47, 68, 0.97)` — azul oscuro institucional
 - **Color accent:** `#2E9CCA` — celeste para acciones principales
 - **Mobile-first:** Sidebar colapsable, toggles grandes para uso con el dedo, botones accesibles
 - **Responsive:** Funciona en celular, tablet y escritorio
-- **Sin naranja** 🚫🟠
+- **Sin naranja**
 
 ---
 
-## 📋 Importar alumnos por XLSX
+## Importar alumnos por XLSX
 
 El archivo Excel debe tener estas columnas (el encabezado puede ser con o sin mayúsculas):
 
@@ -238,13 +247,13 @@ El archivo Excel debe tener estas columnas (el encabezado puede ser con o sin ma
 
 ---
 
-## 🔒 Seguridad
+## Seguridad
 
 La app usa la **anon key** de Supabase, que es pública por diseño (se envía en cada request del navegador). La seguridad de los datos se controla mediante **Row Level Security (RLS)** en Supabase. Para un uso más restrictivo, se puede implementar autenticación con Supabase Auth en futuras versiones.
 
 ---
 
-## 📝 Roadmap
+## Roadmap
 
 - [ ] Autenticación de usuarios (preceptores, administradores)
 - [ ] Justificación de inasistencias
@@ -256,5 +265,5 @@ La app usa la **anon key** de Supabase, que es pública por diseño (se envía e
 ---
 
 <p align="center">
-  Desarrollado para el CEBAS 🏫
+  Desarrollado para el CEBAS
 </p>

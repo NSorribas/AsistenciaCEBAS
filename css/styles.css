@@ -320,6 +320,10 @@ a:hover {
   margin-bottom: 16px;
 }
 
+.setup-icon img {
+  display: inline-block;
+}
+
 .setup-card h2 {
   text-align: center;
   margin-bottom: 8px;

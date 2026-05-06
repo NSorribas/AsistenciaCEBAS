@@ -48,10 +48,9 @@ const App = {
       splash.id = 'app-splash';
       splash.style.cssText = 'position:fixed;inset:0;background:rgba(14,47,68,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;gap:16px;';
       splash.innerHTML = `
-        <svg viewBox="0 0 32 32" width="48" height="48" fill="none" stroke="#2E9CCA" stroke-width="2">
-          <rect x="2" y="4" width="28" height="24" rx="3"/><line x1="2" y1="12" x2="30" y2="12"/><line x1="16" y1="4" x2="16" y2="12"/>
-        </svg>
+        <img src="assets/logo-cebas48.png" alt="CEBAS" style="width:64px;height:64px;object-fit:contain;border-radius:8px;">
         <span style="font-size:1.25rem;font-weight:700;letter-spacing:2px;">CEBAS</span>
+        <span style="font-size:0.75rem;color:rgba(255,255,255,0.6);">Control de Asistencia</span>
         <div class="spinner" style="border-top-color:#2E9CCA;"></div>
       `;
       document.body.appendChild(splash);

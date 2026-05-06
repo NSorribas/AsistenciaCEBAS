@@ -7,6 +7,15 @@
 const Reports = {
   chartInstance: null,
 
+  _eventsBound: false,
+
+  ensureInit() {
+    if (!this._eventsBound) {
+      this.bindEvents();
+      this._eventsBound = true;
+    }
+  },
+
   async init() {
     this.bindEvents();
   },

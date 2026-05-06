@@ -7,9 +7,14 @@ const Students = {
   allStudents: [],
   filteredStudents: [],
 
-  async init() {
-    this.bindEvents();
-    await this.load();
+  _eventsBound: false,
+
+  ensureInit() {
+    if (!this._eventsBound) {
+      this.bindEvents();
+      this._eventsBound = true;
+    }
+    this.load();
   },
 
   bindEvents() {

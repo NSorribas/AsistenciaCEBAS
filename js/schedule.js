@@ -24,6 +24,15 @@ const Schedule = {
     { num: 5, name: 'Viernes' }
   ],
 
+  _eventsBound: false,
+
+  ensureInit() {
+    if (!this._eventsBound) {
+      this.bindEvents();
+      this._eventsBound = true;
+    }
+  },
+
   async init() {
     this.bindEvents();
   },

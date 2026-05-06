@@ -15,9 +15,14 @@ const Attendance = {
   presentCount: 0,
   absentCount: 0,
 
-  async init() {
-    this.bindEvents();
-    this.setDateToToday();
+  _eventsBound: false,
+
+  ensureInit() {
+    if (!this._eventsBound) {
+      this.bindEvents();
+      this.setDateToToday();
+      this._eventsBound = true;
+    }
   },
 
   bindEvents() {
@@ -235,7 +240,7 @@ const Attendance = {
         }
       }
 
-      const checked = hasAnyRecord ? isPresentOverall : false; // Default absent
+      const checked = hasAnyRecord ? isPresentOverall : true; // Default present
       const cardClass = checked ? '' : 'absent';
 
       return `

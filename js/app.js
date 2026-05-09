@@ -293,4 +293,26 @@ const App = {
 // ---- Boot ----
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
+
+  // Register Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => {
+        console.log('[PWA] Service Worker registered:', reg.scope);
+
+        // Listen for updates
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              // New version available — could show a toast
+              Utils.toastInfo('Nueva versión disponible. Recargá para actualizar.');
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn('[PWA] Service Worker registration failed:', err);
+      });
+  }
 });

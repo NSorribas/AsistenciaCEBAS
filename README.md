@@ -34,11 +34,13 @@
 ### Toma de Asistencia
 - Selección de curso y fecha
 - Toggle **Presente/Ausente** por alumno (optimizado para uso en celular)
+- Campos de **Hora de Entrada** y **Hora de Salida** por alumno (se completan automáticamente según el horario del curso)
+- Cálculo automático de presencia por hora cátedra con la **regla del 70%**
+- Resumen en tiempo real de horas presentes/ausentes por alumno
 - Botones de "Todos Presentes" y "Todos Ausentes"
 - Contabilización automática por **hora cátedra** según el horario del curso
 - Detección automática de **recreos** (no computan inasistencias) y **horas libres**
 - Detección de **feriados** y **ausencias de docentes** (no computan inasistencias)
-- Resumen en tiempo real de presentes/ausentes
 
 ### Horarios Escolares
 - Configuración del horario anual por curso y por día
@@ -61,12 +63,34 @@ Grilla mensual tipo planilla escolar, similar al formato manual de papel. Cada f
 
 | Condición | Valor en la celda | Estilo visual |
 |---|---|---|
-| Alumno presente (al menos una hora) | **P** | Verde, negrita |
-| Alumno ausente (todas las horas ausentes) | **A** | Rojo, negrita |
+| Alumno presente todas las horas (horarios default) | **P** | Verde, negrita |
+| Alumno ausente todas las horas | **A** | Rojo, negrita |
+| Alumno que llegó tarde (hora de entrada posterior al default) | **T** | Violeta, fondo lila claro |
+| Alumno que se retiró antes (hora de salida anterior al default) | **RA** | Violeta, fondo índigo claro |
+| Alumno que llegó tarde Y se retiró antes | **T/RA** | Violeta oscuro, fondo lila |
 | Día feriado | **F** | Fondo gris oscuro (visible en impresión B&W) |
 | Alumno dado de baja (después de fecha de egreso, dentro del mes) | **Baja** | Gris claro, cursiva |
 | Alumno aún no ingresado (antes de fecha de ingreso) | *(celda vacía)* | Sin contenido |
 | Sin asistencia registrada ese día | *(celda vacía)* | Sin contenido |
+
+**Lógica de llegada tarde y retiro anticipado (regla del 70%):**
+
+Al tomar asistencia, cada alumno tiene dos campos editables: **Hora de Entrada** y **Hora de Salida**. Por default, estos se completan automáticamente con la hora de inicio de la primera materia del día y la hora de fin de la última materia del día (según el horario del curso). El preceptor puede modificar estos valores.
+
+Para cada hora cátedra (slot con hora de inicio y fin), se aplica la **regla del 70%**:
+- Si el alumno estuvo presente durante el **70% o más** de la duración de esa hora cátedra → se computa como **Presente**
+- Si estuvo presente durante **menos del 70%** → se computa como **Ausente**
+
+Ejemplos:
+- Hora cátedra de 35 minutos (07:45–08:20). Si el alumno entra a las 07:55, estuvo 25 minutos (71%) → **Presente** en esa hora
+- Si entra a las 08:00, estuvo 20 minutos (57%) → **Ausente** en esa hora
+- Todas las horas cátedra posteriores a la hora de entrada se computan como Presente
+- Todas las horas cátedra anteriores a la hora de salida se computan como Presente
+- Las horas cátedra anteriores a la hora de entrada o posteriores a la hora de salida se computan como Ausente
+- Los recreos se excluyen del cálculo
+- Las horas con docente ausente también se excluyen
+
+El resumen **"Xp / Ya"** junto a los campos de hora indica cuántas horas cátedra se computan como Presente y cuántas como Ausente según los horarios ingresados.
 
 **Reglas de visualización de alumnos:**
 - Los alumnos **activos** siempre aparecen

@@ -180,7 +180,7 @@ const Reports = {
   },
 
   renderMonthlyGrid(data) {
-    const { students, attendance, holidayDates, yearMonth } = data;
+    const { students, attendance, holidayDates, dayDefaults, yearMonth } = data;
 
     if (!students || students.length === 0) {
       const container = document.getElementById('report-table-container');
@@ -216,18 +216,21 @@ const Reports = {
       }
     }
 
-    // Build attendance map: student_id -> dateStr -> 'P' | 'A' | ''
+    // Build attendance map: student_id -> dateStr -> { hasPresent, hasAbsent, hora_entrada, hora_salida }
     const attMap = {};
     attendance.forEach(a => {
       if (!attMap[a.student_id]) attMap[a.student_id] = {};
       if (!attMap[a.student_id][a.date]) {
-        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false };
+        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false, hora_entrada: null, hora_salida: null };
       }
       if (a.present) {
         attMap[a.student_id][a.date].hasPresent = true;
       } else {
         attMap[a.student_id][a.date].hasAbsent = true;
       }
+      // Store times (same for all records of same student-day)
+      if (a.hora_entrada) attMap[a.student_id][a.date].hora_entrada = a.hora_entrada;
+      if (a.hora_salida) attMap[a.student_id][a.date].hora_salida = a.hora_salida;
     });
 
     // Sort students alphabetically by apellido, nombre
@@ -288,16 +291,36 @@ const Reports = {
 
         // Check attendance
         const dayAtt = attMap[student.id]?.[wd.dateStr];
-        if (dayAtt) {
-          if (dayAtt.hasPresent) {
-            rowCells += `<td class="cell-present">P</td>`;
-          } else if (dayAtt.hasAbsent) {
-            rowCells += `<td class="cell-absent">A</td>`;
+        if (!dayAtt) {
+          // No attendance record
+          rowCells += `<td></td>`;
+        } else if (!dayAtt.hasPresent && dayAtt.hasAbsent) {
+          // All absent
+          rowCells += `<td class="cell-absent">A</td>`;
+        } else if (dayAtt.hasPresent) {
+          // Some or all present — determine P / T / RA / T·RA
+          const defaults = dayDefaults?.[wd.dateStr];
+          const horaEntrada = dayAtt.hora_entrada;
+          const horaSalida = dayAtt.hora_salida;
+
+          if (defaults && horaEntrada && horaSalida) {
+            const isLate = horaEntrada > defaults.firstStart;
+            const isEarly = horaSalida < defaults.lastEnd;
+
+            if (isLate && isEarly) {
+              rowCells += `<td class="cell-late-early">T/RA</td>`;
+            } else if (isLate) {
+              rowCells += `<td class="cell-late">T</td>`;
+            } else if (isEarly) {
+              rowCells += `<td class="cell-early">RA</td>`;
+            } else {
+              rowCells += `<td class="cell-present">P</td>`;
+            }
           } else {
-            rowCells += `<td></td>`;
+            // Old records without times
+            rowCells += `<td class="cell-present">P</td>`;
           }
         } else {
-          // No attendance record
           rowCells += `<td></td>`;
         }
       });
@@ -493,7 +516,7 @@ const Reports = {
       return;
     }
 
-    const { students, attendance, holidayDates, yearMonth } = data;
+    const { students, attendance, holidayDates, dayDefaults, yearMonth } = data;
     const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
                         'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const dayAbbr = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -516,10 +539,12 @@ const Reports = {
     attendance.forEach(a => {
       if (!attMap[a.student_id]) attMap[a.student_id] = {};
       if (!attMap[a.student_id][a.date]) {
-        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false };
+        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false, hora_entrada: null, hora_salida: null };
       }
       if (a.present) attMap[a.student_id][a.date].hasPresent = true;
       else attMap[a.student_id][a.date].hasAbsent = true;
+      if (a.hora_entrada) attMap[a.student_id][a.date].hora_entrada = a.hora_entrada;
+      if (a.hora_salida) attMap[a.student_id][a.date].hora_salida = a.hora_salida;
     });
 
     // Sort students
@@ -565,10 +590,24 @@ const Reports = {
           return;
         }
         const dayAtt = attMap[student.id]?.[wd.dateStr];
-        if (dayAtt) {
-          if (dayAtt.hasPresent) row.push('P');
-          else if (dayAtt.hasAbsent) row.push('A');
-          else row.push('');
+        if (!dayAtt) {
+          row.push('');
+        } else if (!dayAtt.hasPresent && dayAtt.hasAbsent) {
+          row.push('A');
+        } else if (dayAtt.hasPresent) {
+          const defaults = dayDefaults?.[wd.dateStr];
+          const horaEntrada = dayAtt.hora_entrada;
+          const horaSalida = dayAtt.hora_salida;
+          if (defaults && horaEntrada && horaSalida) {
+            const isLate = horaEntrada > defaults.firstStart;
+            const isEarly = horaSalida < defaults.lastEnd;
+            if (isLate && isEarly) row.push('T/RA');
+            else if (isLate) row.push('T');
+            else if (isEarly) row.push('RA');
+            else row.push('P');
+          } else {
+            row.push('P');
+          }
         } else {
           row.push('');
         }

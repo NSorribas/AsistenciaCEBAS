@@ -541,14 +541,14 @@ const DB = {
     });
 
     if (students.length === 0) {
-      return { students: [], attendance: [], holidayDates: new Set(), dateFrom, dateTo, yearMonth };
+      return { students: [], attendance: [], holidayDates: new Set(), dayDefaults: {}, dateFrom, dateTo, yearMonth };
     }
 
     // Get attendance for these students in this month (non-recess only)
     const studentIds = students.map(s => s.id);
     const { data: attendance, error: attErr } = await this.client
       .from('attendance')
-      .select('id, student_id, date, present, schedule_id, schedule(is_recess)')
+      .select('id, student_id, date, present, hora_entrada, hora_salida, schedule_id, schedule(is_recess)')
       .gte('date', dateFrom)
       .lte('date', dateTo)
       .in('student_id', studentIds);
@@ -559,11 +559,52 @@ const DB = {
     const monthHolidays = holidays.filter(h => h.date >= dateFrom && h.date <= dateTo);
     const holidayDates = new Set(monthHolidays.map(h => h.date));
 
+    // Fetch schedule for default entry/exit times per day
+    const schedule = await this.getSchedule(courseId);
+
+    // Fetch teacher absences for the month
+    const { data: teacherAbsences } = await this.client
+      .from('teacher_absences')
+      .select('date, subject_id')
+      .eq('course_id', courseId)
+      .gte('date', dateFrom)
+      .lte('date', dateTo);
+    const tAbsences = teacherAbsences || [];
+
+    // Compute default entry/exit times per working day
+    const dayDefaults = {};
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(year, month - 1, d);
+      const dow = date.getDay(); // 1=Mon, 5=Fri (matches our DB)
+      if (dow === 0 || dow === 6) continue;
+
+      const dateStr = `${yearMonth}-${String(d).padStart(2, '0')}`;
+      const daySchedule = schedule
+        .filter(s => s.day_of_week === dow && !s.is_recess && s.subject_id)
+        .sort((a, b) => a.hour_slot - b.hour_slot);
+
+      if (daySchedule.length === 0) continue;
+
+      // Exclude teacher-absent subjects for this date
+      const dayAbsentSubjects = new Set(
+        tAbsences.filter(ta => ta.date === dateStr).map(ta => ta.subject_id)
+      );
+      const effectiveSlots = daySchedule.filter(s => !dayAbsentSubjects.has(s.subject_id));
+
+      if (effectiveSlots.length > 0) {
+        dayDefaults[dateStr] = {
+          firstStart: effectiveSlots[0].start_time,
+          lastEnd: effectiveSlots[effectiveSlots.length - 1].end_time
+        };
+      }
+    }
+
     return {
       students,
       attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
       holidayDates,
       holidays: monthHolidays,
+      dayDefaults,
       dateFrom,
       dateTo,
       yearMonth

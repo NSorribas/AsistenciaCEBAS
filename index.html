@@ -151,6 +151,8 @@ CREATE TABLE IF NOT EXISTS attendance (
   schedule_id UUID REFERENCES schedule(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   present BOOLEAN DEFAULT FALSE,
+  hora_entrada TIME,
+  hora_salida TIME,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(student_id, schedule_id, date)
 );
@@ -189,7 +191,13 @@ CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);</pre>
+CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
+
+-- =============================================
+-- MIGRACIÓN: Si ya tenés las tablas creadas, ejecutá esto aparte
+-- =============================================
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_entrada TIME;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;</pre>
             </div>
 
             <form id="setup-form" class="setup-form">

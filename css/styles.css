@@ -921,10 +921,76 @@ a:hover {
   background: var(--color-danger-light);
 }
 
-.att-student-name {
+.att-student-details {
   flex: 1;
+  min-width: 0;
+}
+
+.att-student-name {
   font-weight: 600;
   font-size: 0.9375rem;
+}
+
+.att-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.att-time-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.att-time-group label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.att-time-input {
+  width: 90px;
+  padding: 4px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-family: var(--font-family);
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  transition: border-color var(--transition-fast);
+}
+
+.att-time-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(46,156,202,0.15);
+}
+
+.att-time-input:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-light);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.att-hours-summary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: var(--color-bg);
+  border-radius: var(--radius-full);
+}
+
+.att-hours-summary.partial {
+  color: #5E35B1;
+  background: #EDE7F6;
 }
 
 /* Toggle Switch for Attendance */
@@ -1591,6 +1657,24 @@ a:hover {
 .monthly-grid .cell-absent {
   color: var(--color-danger);
   font-weight: 700;
+}
+
+.monthly-grid .cell-late {
+  color: #5E35B1;
+  font-weight: 700;
+  background: #EDE7F6;
+}
+
+.monthly-grid .cell-early {
+  color: #5E35B1;
+  font-weight: 700;
+  background: #E8EAF6;
+}
+
+.monthly-grid .cell-late-early {
+  color: #4527A0;
+  font-weight: 700;
+  background: #D1C4E9;
 }
 
 .monthly-grid .cell-baja {

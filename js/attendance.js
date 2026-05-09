@@ -1,7 +1,8 @@
 /* =============================================
    CEBAS Asistencia - Attendance Module
    Take attendance by course, mark present/absent
-   Handle holidays and teacher absences
+   Handle late arrivals (T) and early departures (RA)
+   70% rule for hora cátedra presence
    ============================================= */
 
 const Attendance = {
@@ -12,6 +13,7 @@ const Attendance = {
   studentsData: [],
   holidays: [],
   teacherAbsences: [],
+  effectiveSlots: [],
   presentCount: 0,
   absentCount: 0,
 
@@ -172,6 +174,11 @@ const Attendance = {
       // Get teacher absences
       this.teacherAbsences = await DB.getTeacherAbsences({ date, courseId });
 
+      // Compute effective slots (active - teacher absences)
+      const activeSlots = this.scheduleData.filter(s => !s.is_recess && s.subject_id);
+      const absentSubjectIds = new Set(this.teacherAbsences.map(ta => ta.subject_id));
+      this.effectiveSlots = activeSlots.filter(s => !absentSubjectIds.has(s.subject_id));
+
       // Get existing attendance for this date
       const result = await DB.getAttendanceByCourseAndDate(courseId, date);
       this.attendanceData = result.attendance || [];
@@ -195,60 +202,149 @@ const Attendance = {
     document.getElementById('attendance-mark').style.display = 'block';
   },
 
+  // ===================== TIME HELPERS =====================
+
+  /** Convert "HH:MM" to minutes since midnight */
+  timeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  },
+
+  /** Get default entry/exit times for the current day's effective slots */
+  getDefaultTimes() {
+    if (this.effectiveSlots.length === 0) {
+      return { firstStart: '07:45', lastEnd: '12:05' };
+    }
+    const sorted = [...this.effectiveSlots].sort((a, b) => a.hour_slot - b.hour_slot);
+    return {
+      firstStart: sorted[0].start_time,
+      lastEnd: sorted[sorted.length - 1].end_time
+    };
+  },
+
+  /**
+   * Calculate per-slot presence based on entry/exit times and 70% rule.
+   * Returns array of { slotId, present } for each slot.
+   */
+  calculateSlotPresence(horaEntrada, horaSalida, slots) {
+    const entry = this.timeToMinutes(horaEntrada);
+    const exit = this.timeToMinutes(horaSalida);
+
+    if (!horaEntrada || !horaSalida || entry >= exit) {
+      return slots.map(s => ({ slotId: s.id, present: false }));
+    }
+
+    return slots.map(slot => {
+      const slotStart = this.timeToMinutes(slot.start_time);
+      const slotEnd = this.timeToMinutes(slot.end_time);
+      const slotDuration = slotEnd - slotStart;
+
+      if (slotDuration <= 0) return { slotId: slot.id, present: false };
+
+      // No overlap at all
+      if (entry >= slotEnd || exit <= slotStart) {
+        return { slotId: slot.id, present: false };
+      }
+
+      // Calculate overlap
+      const overlapStart = Math.max(entry, slotStart);
+      const overlapEnd = Math.min(exit, slotEnd);
+      const overlapMinutes = overlapEnd - overlapStart;
+
+      // 70% rule: present if overlap >= 70% of slot duration
+      return { slotId: slot.id, present: (overlapMinutes / slotDuration) >= 0.7 };
+    });
+  },
+
+  /** Calculate P/A hours for a student given their entry/exit times */
+  calculateHoursSummary(horaEntrada, horaSalida) {
+    if (!this.effectiveSlots.length) return { present: 0, absent: 0 };
+    const presence = this.calculateSlotPresence(horaEntrada, horaSalida, this.effectiveSlots);
+    const present = presence.filter(p => p.present).length;
+    const absent = presence.filter(p => !p.present).length;
+    return { present, absent };
+  },
+
+  // ===================== RENDER STUDENT LIST =====================
+
   renderStudentList() {
     const container = document.getElementById('attendance-student-list');
     if (!container) return;
-
-    // Filter out recess and free slots from schedule for attendance purposes
-    const activeSlots = this.scheduleData.filter(s => !s.is_recess && s.subject_id);
 
     if (this.studentsData.length === 0) {
       Utils.showEmpty(container, 'Sin alumnos activos', 'No hay alumnos activos en este curso.');
       return;
     }
 
-    // Build a map of existing attendance
+    const defaults = this.getDefaultTimes();
+
+    // Build attendance map: student_id -> schedule_id -> { present, hora_entrada, hora_salida }
     const attendanceMap = {};
+    const studentTimes = {};
     this.attendanceData.forEach(a => {
-      attendanceMap[`${a.student_id}_${a.schedule_id}`] = a.present;
+      if (!attendanceMap[a.student_id]) attendanceMap[a.student_id] = {};
+      attendanceMap[a.student_id][a.schedule_id] = a.present;
+      // Times are same for all records of same student-day; store once
+      if (a.hora_entrada) {
+        studentTimes[a.student_id] = {
+          hora_entrada: a.hora_entrada,
+          hora_salida: a.hora_salida
+        };
+      }
     });
 
-    // Check which subjects have teacher absences
-    const absentSubjectIds = new Set(this.teacherAbsences.map(ta => ta.subject_id));
-
-    // Filter schedule: exclude subjects with absent teachers
-    const effectiveSlots = activeSlots.filter(s => !absentSubjectIds.has(s.subject_id));
-
     container.innerHTML = this.studentsData.map(student => {
-      // Determine if student is present overall (present in ALL effective slots)
-      let isPresentOverall = true;
-      let hasAnyRecord = false;
+      // Determine existing state
+      const hasRecords = attendanceMap[student.id] &&
+        this.effectiveSlots.some(s => attendanceMap[student.id][s.id] !== undefined);
 
-      if (effectiveSlots.length > 0) {
-        for (const slot of effectiveSlots) {
-          const key = `${student.id}_${slot.id}`;
-          if (attendanceMap[key] !== undefined) {
-            hasAnyRecord = true;
-            if (!attendanceMap[key]) {
-              isPresentOverall = false;
-              break;
-            }
-          } else {
-            // No record yet, default to absent
-            isPresentOverall = false;
-          }
-        }
+      let isPresent, horaEntrada, horaSalida;
+
+      if (hasRecords) {
+        const allAbsent = this.effectiveSlots.every(s => attendanceMap[student.id][s.id] === false);
+        isPresent = !allAbsent;
+        const times = studentTimes[student.id];
+        horaEntrada = times ? times.hora_entrada : defaults.firstStart;
+        horaSalida = times ? times.hora_salida : defaults.lastEnd;
+      } else {
+        // No records yet — default to present with default times
+        isPresent = true;
+        horaEntrada = defaults.firstStart;
+        horaSalida = defaults.lastEnd;
       }
 
-      const checked = hasAnyRecord ? isPresentOverall : true; // Default present
-      const cardClass = checked ? '' : 'absent';
+      const disabled = isPresent ? '' : 'disabled';
+      const cardClass = isPresent ? '' : 'absent';
+
+      // Calculate P/A summary for the current times
+      let summary = '';
+      if (isPresent) {
+        const hours = this.calculateHoursSummary(horaEntrada, horaSalida);
+        summary = `<span class="att-hours-summary">${hours.present}P / ${hours.absent}A</span>`;
+      } else {
+        summary = `<span class="att-hours-summary">${0}P / ${this.effectiveSlots.length}A</span>`;
+      }
 
       return `
         <div class="att-student-card ${cardClass}" data-student-id="${student.id}">
           <div class="student-avatar">${Utils.getInitials(student.apellido, student.nombre)}</div>
-          <span class="att-student-name">${Utils.escapeHTML(student.apellido)}, ${Utils.escapeHTML(student.nombre)}</span>
+          <div class="att-student-details">
+            <span class="att-student-name">${Utils.escapeHTML(student.apellido)}, ${Utils.escapeHTML(student.nombre)}</span>
+            <div class="att-time-row">
+              <div class="att-time-group">
+                <label>Ent</label>
+                <input type="time" class="att-time-input" data-field="entrada" value="${horaEntrada || ''}" ${disabled}>
+              </div>
+              <div class="att-time-group">
+                <label>Sal</label>
+                <input type="time" class="att-time-input" data-field="salida" value="${horaSalida || ''}" ${disabled}>
+              </div>
+              ${summary}
+            </div>
+          </div>
           <label class="toggle-attendance">
-            <input type="checkbox" ${checked ? 'checked' : ''} data-student-id="${student.id}">
+            <input type="checkbox" ${isPresent ? 'checked' : ''} data-student-id="${student.id}">
             <span class="toggle-slider"></span>
             <span class="toggle-label label-present">SI</span>
             <span class="toggle-label label-absent">NO</span>
@@ -259,25 +355,98 @@ const Attendance = {
 
     // Bind toggle events
     container.querySelectorAll('.toggle-attendance input').forEach(toggle => {
-      toggle.addEventListener('change', (e) => {
-        const card = e.target.closest('.att-student-card');
-        if (e.target.checked) {
-          card.classList.remove('absent');
-        } else {
-          card.classList.add('absent');
-        }
-        this.updateCounts();
-      });
+      toggle.addEventListener('change', (e) => this.onToggleChange(e));
+    });
+
+    // Bind time input events
+    container.querySelectorAll('.att-time-input').forEach(input => {
+      input.addEventListener('change', (e) => this.onTimeChange(e));
     });
 
     this.updateCounts();
   },
 
+  /** Handle toggle change for a student card */
+  onToggleChange(e) {
+    const card = e.target.closest('.att-student-card');
+    const isPresent = e.target.checked;
+    const timeInputs = card.querySelectorAll('.att-time-input');
+    const defaults = this.getDefaultTimes();
+
+    if (isPresent) {
+      card.classList.remove('absent');
+      timeInputs.forEach(input => {
+        input.disabled = false;
+        // Set defaults if empty
+        if (!input.value) {
+          input.value = input.dataset.field === 'entrada' ? defaults.firstStart : defaults.lastEnd;
+        }
+      });
+    } else {
+      card.classList.add('absent');
+      timeInputs.forEach(input => input.disabled = true);
+      // Update summary to show all absent
+      const summaryEl = card.querySelector('.att-hours-summary');
+      if (summaryEl) summaryEl.textContent = `0P / ${this.effectiveSlots.length}A`;
+    }
+
+    if (isPresent) {
+      // Recalculate summary with current times
+      this.updateCardSummary(card);
+    }
+
+    this.updateCounts();
+  },
+
+  /** Handle time input change for a student card */
+  onTimeChange(e) {
+    const card = e.target.closest('.att-student-card');
+    const entradaInput = card.querySelector('[data-field="entrada"]');
+    const salidaInput = card.querySelector('[data-field="salida"]');
+
+    // Validate: entrada must be before salida
+    const entryMin = this.timeToMinutes(entradaInput.value);
+    const exitMin = this.timeToMinutes(salidaInput.value);
+
+    if (entradaInput.value && salidaInput.value && entryMin >= exitMin) {
+      Utils.toastWarning('La hora de entrada debe ser anterior a la de salida');
+      // Revert the changed input
+      const defaults = this.getDefaultTimes();
+      if (e.target.dataset.field === 'entrada') {
+        entradaInput.value = defaults.firstStart;
+      } else {
+        salidaInput.value = defaults.lastEnd;
+      }
+    }
+
+    this.updateCardSummary(card);
+  },
+
+  /** Update P/A hours summary for a specific card */
+  updateCardSummary(card) {
+    const entradaInput = card.querySelector('[data-field="entrada"]');
+    const salidaInput = card.querySelector('[data-field="salida"]');
+    const summaryEl = card.querySelector('.att-hours-summary');
+
+    if (!entradaInput || !salidaInput || !summaryEl) return;
+
+    const hours = this.calculateHoursSummary(entradaInput.value, salidaInput.value);
+    summaryEl.textContent = `${hours.present}P / ${hours.absent}A`;
+
+    // Visual feedback: if partially absent, add a subtle indicator
+    if (hours.absent > 0 && hours.present > 0) {
+      summaryEl.classList.add('partial');
+    } else {
+      summaryEl.classList.remove('partial');
+    }
+  },
+
   updateCounts() {
-    const toggles = document.querySelectorAll('#attendance-student-list .toggle-attendance input');
+    const cards = document.querySelectorAll('#attendance-student-list .att-student-card');
     let present = 0, absent = 0;
-    toggles.forEach(t => {
-      if (t.checked) present++;
+    cards.forEach(card => {
+      const toggle = card.querySelector('.toggle-attendance input');
+      if (toggle?.checked) present++;
       else absent++;
     });
     this.presentCount = present;
@@ -290,48 +459,92 @@ const Attendance = {
   },
 
   markAll(present) {
-    const toggles = document.querySelectorAll('#attendance-student-list .toggle-attendance input');
-    toggles.forEach(t => {
-      t.checked = present;
-      const card = t.closest('.att-student-card');
-      if (present) card.classList.remove('absent');
-      else card.classList.add('absent');
+    const defaults = this.getDefaultTimes();
+    const cards = document.querySelectorAll('#attendance-student-list .att-student-card');
+
+    cards.forEach(card => {
+      const toggle = card.querySelector('.toggle-attendance input');
+      const timeInputs = card.querySelectorAll('.att-time-input');
+      const summaryEl = card.querySelector('.att-hours-summary');
+
+      toggle.checked = present;
+
+      if (present) {
+        card.classList.remove('absent');
+        timeInputs.forEach(input => {
+          input.disabled = false;
+          if (!input.value) {
+            input.value = input.dataset.field === 'entrada' ? defaults.firstStart : defaults.lastEnd;
+          }
+        });
+        // Update summary
+        if (summaryEl) {
+          const entrada = card.querySelector('[data-field="entrada"]')?.value || defaults.firstStart;
+          const salida = card.querySelector('[data-field="salida"]')?.value || defaults.lastEnd;
+          const hours = this.calculateHoursSummary(entrada, salida);
+          summaryEl.textContent = `${hours.present}P / ${hours.absent}A`;
+        }
+      } else {
+        card.classList.add('absent');
+        timeInputs.forEach(input => input.disabled = true);
+        if (summaryEl) summaryEl.textContent = `0P / ${this.effectiveSlots.length}A`;
+      }
     });
+
     this.updateCounts();
   },
 
   async save() {
     if (!this.currentCourseId || !this.currentDate) return;
 
-    const activeSlots = this.scheduleData.filter(s => !s.is_recess && s.subject_id);
-    const absentSubjectIds = new Set(this.teacherAbsences.map(ta => ta.subject_id));
-    const effectiveSlots = activeSlots.filter(s => !absentSubjectIds.has(s.subject_id));
-
-    if (effectiveSlots.length === 0) {
+    if (this.effectiveSlots.length === 0) {
       Utils.toastWarning('No hay horas efectivas para registrar asistencia');
       return;
     }
 
-    const toggles = document.querySelectorAll('#attendance-student-list .toggle-attendance input');
+    const cards = document.querySelectorAll('#attendance-student-list .att-student-card');
     const records = [];
 
-    toggles.forEach(toggle => {
-      const studentId = toggle.dataset.studentId;
+    cards.forEach(card => {
+      const studentId = card.dataset.studentId;
+      const toggle = card.querySelector('.toggle-attendance input');
       const isPresent = toggle.checked;
 
-      effectiveSlots.forEach(slot => {
-        records.push({
-          student_id: studentId,
-          schedule_id: slot.id,
-          date: this.currentDate,
-          present: isPresent
+      if (isPresent) {
+        const horaEntrada = card.querySelector('[data-field="entrada"]')?.value || null;
+        const horaSalida = card.querySelector('[data-field="salida"]')?.value || null;
+
+        // Calculate per-slot presence using 70% rule
+        const slotPresence = this.calculateSlotPresence(horaEntrada, horaSalida, this.effectiveSlots);
+
+        slotPresence.forEach(sp => {
+          records.push({
+            student_id: studentId,
+            schedule_id: sp.slotId,
+            date: this.currentDate,
+            present: sp.present,
+            hora_entrada: horaEntrada,
+            hora_salida: horaSalida
+          });
         });
-      });
+      } else {
+        // Absent all day
+        this.effectiveSlots.forEach(slot => {
+          records.push({
+            student_id: studentId,
+            schedule_id: slot.id,
+            date: this.currentDate,
+            present: false,
+            hora_entrada: null,
+            hora_salida: null
+          });
+        });
+      }
     });
 
     try {
       // Delete existing attendance for this date and schedule
-      const scheduleIds = effectiveSlots.map(s => s.id);
+      const scheduleIds = this.effectiveSlots.map(s => s.id);
       await DB.deleteAttendanceByDate(this.currentDate, scheduleIds);
 
       // Insert new attendance

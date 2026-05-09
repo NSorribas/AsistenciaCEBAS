@@ -510,6 +510,66 @@ const DB = {
     return data || [];
   },
 
+  // ===================== MONTHLY GRID =====================
+  async getMonthlyGridData(courseId, yearMonth, studentId = null) {
+    const [year, month] = yearMonth.split('-').map(Number);
+    const dateFrom = `${yearMonth}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const dateTo = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
+
+    // Get students: active + inactive with egreso in this month or later
+    let studentQuery = this.client
+      .from('students')
+      .select('*, courses(id, name)')
+      .eq('course_id', courseId)
+      .order('apellido')
+      .order('nombre');
+
+    if (studentId) {
+      studentQuery = studentQuery.eq('id', studentId);
+    }
+
+    const { data: allStudents, error: studErr } = await studentQuery;
+    if (studErr) throw studErr;
+
+    // Filter: active students OR inactive whose egreso is in this month or later
+    const monthStart = dateFrom;
+    const students = (allStudents || []).filter(s => {
+      if (s.status === 'activo') return true;
+      if (s.status === 'inactivo' && s.fecha_egreso && s.fecha_egreso >= monthStart) return true;
+      return false;
+    });
+
+    if (students.length === 0) {
+      return { students: [], attendance: [], holidayDates: new Set(), dateFrom, dateTo, yearMonth };
+    }
+
+    // Get attendance for these students in this month (non-recess only)
+    const studentIds = students.map(s => s.id);
+    const { data: attendance, error: attErr } = await this.client
+      .from('attendance')
+      .select('id, student_id, date, present, schedule_id, schedule(is_recess)')
+      .gte('date', dateFrom)
+      .lte('date', dateTo)
+      .in('student_id', studentIds);
+    if (attErr) throw attErr;
+
+    // Get holidays for this month
+    const holidays = await this.getHolidays();
+    const monthHolidays = holidays.filter(h => h.date >= dateFrom && h.date <= dateTo);
+    const holidayDates = new Set(monthHolidays.map(h => h.date));
+
+    return {
+      students,
+      attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
+      holidayDates,
+      holidays: monthHolidays,
+      dateFrom,
+      dateTo,
+      yearMonth
+    };
+  },
+
   // ===================== STATS (optimized) =====================
   async getStats() {
     try {

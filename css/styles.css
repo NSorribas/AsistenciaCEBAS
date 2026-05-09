@@ -1490,6 +1490,132 @@ a:hover {
   color: var(--color-text-secondary);
 }
 
+/* ====== Monthly Grid Report ====== */
+.monthly-grid-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 8px;
+}
+
+.monthly-grid {
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  min-width: 800px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  width: max-content;
+}
+
+.monthly-grid th,
+.monthly-grid td {
+  padding: 6px 8px;
+  text-align: center;
+  border: 1px solid var(--color-border-light);
+  white-space: nowrap;
+}
+
+.monthly-grid thead th {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.monthly-grid .month-header {
+  background: var(--color-primary-dark);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.monthly-grid .day-name-row th {
+  font-size: 0.625rem;
+  padding: 4px 6px;
+}
+
+.monthly-grid .day-num-row th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 6px;
+}
+
+.monthly-grid .student-name-col {
+  text-align: left;
+  font-weight: 600;
+  min-width: 160px;
+  position: sticky;
+  left: 36px;
+  z-index: 2;
+  background: var(--color-bg-card);
+}
+
+.monthly-grid thead .student-name-col {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.monthly-grid .order-col {
+  min-width: 36px;
+  width: 36px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-bg-card);
+}
+
+.monthly-grid thead .order-col {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.monthly-grid tbody tr:nth-child(even) {
+  background: rgba(0,0,0,0.02);
+}
+
+.monthly-grid tbody tr:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+.monthly-grid .cell-present {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.monthly-grid .cell-absent {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.monthly-grid .cell-baja {
+  color: var(--color-text-light);
+  font-style: italic;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.monthly-grid .cell-holiday {
+  background: var(--color-bg-hover);
+  color: var(--color-text-light);
+  font-size: 0.5625rem;
+  font-weight: 600;
+}
+
+.monthly-grid .holiday-header {
+  background: var(--color-primary-light) !important;
+}
+
+.monthly-grid .day-col {
+  min-width: 32px;
+  width: 32px;
+}
+
 /* ====== Responsive: Tablet (768px+) ====== */
 @media (min-width: 768px) {
   .home-quick-actions {

@@ -1,11 +1,11 @@
 /* =============================================
    CEBAS Asistencia - Reports Module
-   Monthly, YTD, custom range reports
-   By student, by course
+   Planilla Mensual (grid) + Detalle por Alumno
    ============================================= */
 
 const Reports = {
   chartInstance: null,
+  lastGridData: null, // cache for XLSX export
 
   _eventsBound: false,
 
@@ -34,7 +34,7 @@ const Reports = {
       const courseSelect = document.getElementById('report-course');
       if (courseSelect) {
         const currentVal = courseSelect.value;
-        courseSelect.innerHTML = '<option value="">Todos los cursos</option>';
+        courseSelect.innerHTML = '<option value="">Seleccionar curso...</option>';
         courses.forEach(c => {
           courseSelect.innerHTML += `<option value="${c.id}">${Utils.escapeHTML(c.name)}</option>`;
         });
@@ -46,6 +46,9 @@ const Reports = {
       if (monthInput && !monthInput.value) {
         monthInput.value = Utils.getCurrentMonth();
       }
+
+      // Apply initial type filter
+      this.onTypeChange();
     } catch (e) {
       console.error('Error populating report selects:', e);
     }
@@ -54,8 +57,21 @@ const Reports = {
   onTypeChange() {
     const type = document.getElementById('report-type')?.value;
     const studentSelect = document.getElementById('report-student');
-    if (studentSelect) {
-      studentSelect.disabled = type !== 'by-student';
+    const periodSelect = document.getElementById('report-period');
+    const monthSelect = document.getElementById('report-month-select');
+    const customRange = document.getElementById('report-custom-range');
+
+    if (type === 'monthly') {
+      // Planilla Mensual: student is optional, period is always month
+      if (studentSelect) studentSelect.disabled = false;
+      if (periodSelect) { periodSelect.value = 'month'; periodSelect.disabled = true; }
+      if (monthSelect) monthSelect.style.display = '';
+      if (customRange) customRange.style.display = 'none';
+    } else {
+      // Detalle por Alumno: student required, period flexible
+      if (studentSelect) studentSelect.disabled = false;
+      if (periodSelect) periodSelect.disabled = false;
+      this.onPeriodChange();
     }
   },
 
@@ -71,15 +87,14 @@ const Reports = {
   async onCourseChange() {
     const courseId = document.getElementById('report-course')?.value;
     const studentSelect = document.getElementById('report-student');
-
     if (!studentSelect) return;
 
     try {
       const students = courseId
-        ? await DB.getStudents({ courseId, status: 'activo' })
-        : await DB.getStudents({ status: 'activo' });
+        ? await DB.getStudents({ courseId })
+        : await DB.getStudents({});
 
-      studentSelect.innerHTML = '<option value="">Seleccionar alumno...</option>';
+      studentSelect.innerHTML = '<option value="">Todos los alumnos</option>';
       students.forEach(s => {
         studentSelect.innerHTML += `<option value="${s.id}">${Utils.escapeHTML(s.apellido)}, ${Utils.escapeHTML(s.nombre)}</option>`;
       });
@@ -116,37 +131,211 @@ const Reports = {
     const type = document.getElementById('report-type')?.value;
     const courseId = document.getElementById('report-course')?.value;
     const studentId = document.getElementById('report-student')?.value;
-    const dateRange = this.getDateRange();
 
-    if (!dateRange) {
-      Utils.toastWarning('Seleccioná un rango de fechas válido');
+    if (type === 'monthly') {
+      // Planilla Mensual: course + month required
+      if (!courseId) {
+        Utils.toastWarning('Seleccioná un curso para la planilla mensual');
+        return;
+      }
+      const monthVal = document.getElementById('report-month')?.value;
+      if (!monthVal) {
+        Utils.toastWarning('Seleccioná un mes para la planilla mensual');
+        return;
+      }
+      await this.generateMonthlyGrid(courseId, monthVal, studentId || null);
+    } else {
+      // Detalle por Alumno
+      if (!studentId) {
+        Utils.toastWarning('Seleccioná un alumno para el reporte individual');
+        return;
+      }
+      const dateRange = this.getDateRange();
+      if (!dateRange) {
+        Utils.toastWarning('Seleccioná un rango de fechas válido');
+        return;
+      }
+      await this.generateStudentDetail(studentId, dateRange, courseId);
+    }
+  },
+
+  // ===================== PLANILLA MENSUAL =====================
+  async generateMonthlyGrid(courseId, yearMonth, studentId = null) {
+    const resultsDiv = document.getElementById('report-results');
+    const container = document.getElementById('report-table-container');
+    const chartContainer = document.getElementById('report-chart-container');
+    chartContainer.style.display = 'none';
+    Utils.showLoading(container, 'Generando planilla mensual...');
+    resultsDiv.style.display = 'block';
+
+    try {
+      const data = await DB.getMonthlyGridData(courseId, yearMonth, studentId);
+      this.lastGridData = { ...data, courseId };
+      this.renderMonthlyGrid(data);
+    } catch (e) {
+      console.error('Error generating monthly grid:', e);
+      Utils.toastError('Error al generar planilla mensual');
+      resultsDiv.style.display = 'none';
+    }
+  },
+
+  renderMonthlyGrid(data) {
+    const { students, attendance, holidayDates, yearMonth } = data;
+
+    if (!students || students.length === 0) {
+      const container = document.getElementById('report-table-container');
+      Utils.showEmpty(container, 'Sin alumnos', 'No hay alumnos para el curso y mes seleccionados.');
+      document.getElementById('report-chart-container').style.display = 'none';
       return;
     }
 
-    if (type === 'by-student' && !studentId) {
-      Utils.toastWarning('Seleccioná un alumno para el reporte individual');
-      return;
+    const courseName = students[0]?.courses?.name || 'Curso';
+    const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const dayAbbr = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+    const [year, month] = yearMonth.split('-').map(Number);
+
+    // Title
+    const title = `Planilla Mensual - ${courseName} - ${monthNames[month - 1]} ${year}`;
+    document.getElementById('report-title').textContent = title;
+
+    // Build list of working days (Mon-Fri) in this month
+    const lastDay = new Date(year, month, 0).getDate();
+    const workDays = [];
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(year, month - 1, d);
+      const dow = date.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const dateStr = `${yearMonth}-${String(d).padStart(2, '0')}`;
+        workDays.push({
+          day: d,
+          dateStr,
+          dayName: dayAbbr[dow],
+          isHoliday: holidayDates.has(dateStr)
+        });
+      }
     }
 
+    // Build attendance map: student_id -> dateStr -> 'P' | 'A' | ''
+    const attMap = {};
+    attendance.forEach(a => {
+      if (!attMap[a.student_id]) attMap[a.student_id] = {};
+      if (!attMap[a.student_id][a.date]) {
+        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false };
+      }
+      if (a.present) {
+        attMap[a.student_id][a.date].hasPresent = true;
+      } else {
+        attMap[a.student_id][a.date].hasAbsent = true;
+      }
+    });
+
+    // Sort students alphabetically by apellido, nombre
+    const sortedStudents = [...students].sort((a, b) => {
+      const cmp = (a.apellido || '').localeCompare(b.apellido || '');
+      if (cmp !== 0) return cmp;
+      return (a.nombre || '').localeCompare(b.nombre || '');
+    });
+
+    // Build table HTML
+    const container = document.getElementById('report-table-container');
+
+    // Row 1: Month name (merged across day columns)
+    let monthHeaderCells = `<th class="order-col" rowspan="3">Nro</th>`;
+    monthHeaderCells += `<th class="student-name-col" rowspan="3">Apellido y Nombre</th>`;
+    monthHeaderCells += `<th class="month-header" colspan="${workDays.length}">${monthNames[month - 1]} ${year}</th>`;
+
+    // Row 2: Day names
+    let dayNameCells = '';
+    workDays.forEach(wd => {
+      const cls = wd.isHoliday ? ' holiday-header' : '';
+      dayNameCells += `<th class="day-col${cls}">${wd.dayName}</th>`;
+    });
+
+    // Row 3: Day numbers
+    let dayNumCells = '';
+    workDays.forEach(wd => {
+      const cls = wd.isHoliday ? ' holiday-header' : '';
+      dayNumCells += `<th class="day-col${cls}">${wd.day}</th>`;
+    });
+
+    // Student rows
+    let studentRows = '';
+    sortedStudents.forEach((student, idx) => {
+      const orderNum = idx + 1;
+      const fullName = `${Utils.escapeHTML(student.apellido || '')}, ${Utils.escapeHTML(student.nombre || '')}`;
+      let rowCells = `<td class="order-col">${orderNum}</td>`;
+      rowCells += `<td class="student-name-col">${fullName}</td>`;
+
+      workDays.forEach(wd => {
+        // Check if student left before this day
+        if (student.status === 'inactivo' && student.fecha_egreso && student.fecha_egreso < wd.dateStr) {
+          rowCells += `<td class="cell-baja">Baja</td>`;
+          return;
+        }
+
+        // Check if student hadn't enrolled yet
+        if (student.fecha_ingreso && student.fecha_ingreso > wd.dateStr) {
+          rowCells += `<td></td>`;
+          return;
+        }
+
+        // Check if it's a holiday
+        if (wd.isHoliday) {
+          rowCells += `<td class="cell-holiday">F</td>`;
+          return;
+        }
+
+        // Check attendance
+        const dayAtt = attMap[student.id]?.[wd.dateStr];
+        if (dayAtt) {
+          if (dayAtt.hasPresent) {
+            rowCells += `<td class="cell-present">P</td>`;
+          } else if (dayAtt.hasAbsent) {
+            rowCells += `<td class="cell-absent">A</td>`;
+          } else {
+            rowCells += `<td></td>`;
+          }
+        } else {
+          // No attendance record
+          rowCells += `<td></td>`;
+        }
+      });
+
+      studentRows += `<tr>${rowCells}</tr>`;
+    });
+
+    container.innerHTML = `
+      <div class="monthly-grid-wrapper">
+        <table class="monthly-grid">
+          <thead>
+            <tr>${monthHeaderCells}</tr>
+            <tr class="day-name-row">${dayNameCells}</tr>
+            <tr class="day-num-row">${dayNumCells}</tr>
+          </thead>
+          <tbody>
+            ${studentRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  // ===================== DETALLE POR ALUMNO =====================
+  async generateStudentDetail(studentId, dateRange, courseId) {
     const resultsDiv = document.getElementById('report-results');
     const container = document.getElementById('report-table-container');
     Utils.showLoading(container, 'Generando reporte...');
     resultsDiv.style.display = 'block';
 
     try {
-      const filters = { ...dateRange };
+      const filters = { ...dateRange, studentId };
       if (courseId) filters.courseId = courseId;
-      if (studentId) filters.studentId = studentId;
 
       const data = await DB.getAttendanceReport(filters);
-
-      if (type === 'by-student') {
-        this.renderStudentReport(data, dateRange);
-      } else {
-        this.renderCourseReport(data, dateRange, courseId);
-      }
+      this.renderStudentReport(data, dateRange);
     } catch (e) {
-      console.error('Error generating report:', e);
+      console.error('Error generating student report:', e);
       Utils.toastError('Error al generar reporte');
       resultsDiv.style.display = 'none';
     }
@@ -161,7 +350,7 @@ const Reports = {
     }
 
     const student = data[0]?.students;
-    const title = `Reporte de ${student?.apellido || ''}, ${student?.nombre || ''} - ${Utils.formatDate(dateRange.dateFrom)} a ${Utils.formatDate(dateRange.dateTo)}`;
+    const title = `Detalle de ${student?.apellido || ''}, ${student?.nombre || ''} - ${Utils.formatDate(dateRange.dateFrom)} a ${Utils.formatDate(dateRange.dateTo)}`;
     document.getElementById('report-title').textContent = title;
 
     // Group by subject
@@ -177,7 +366,6 @@ const Reports = {
       }
     });
 
-    // Render table
     const container = document.getElementById('report-table-container');
     const subjects = Object.entries(subjectMap).sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -227,83 +415,6 @@ const Reports = {
     );
   },
 
-  renderCourseReport(data, dateRange, courseId) {
-    if (!data || data.length === 0) {
-      const container = document.getElementById('report-table-container');
-      Utils.showEmpty(container, 'Sin datos', 'No se encontraron registros de asistencia para el período seleccionado.');
-      document.getElementById('report-chart-container').style.display = 'none';
-      return;
-    }
-
-    const courseName = data[0]?.students?.courses?.name || 'Todos los cursos';
-    const title = `Reporte del Curso ${courseName} - ${Utils.formatDate(dateRange.dateFrom)} a ${Utils.formatDate(dateRange.dateTo)}`;
-    document.getElementById('report-title').textContent = title;
-
-    // Group by student and subject
-    const studentMap = {};
-    data.forEach(record => {
-      const studentKey = record.student_id;
-      const studentName = `${record.students?.apellido || ''}, ${record.students?.nombre || ''}`;
-      const subjectName = record.schedule?.subjects?.name || 'Sin materia';
-
-      if (!studentMap[studentKey]) {
-        studentMap[studentKey] = { name: studentName, total: 0, absences: 0, subjects: {} };
-      }
-
-      studentMap[studentKey].total++;
-      if (!record.present) {
-        studentMap[studentKey].absences++;
-      }
-
-      if (!studentMap[studentKey].subjects[subjectName]) {
-        studentMap[studentKey].subjects[subjectName] = { total: 0, absences: 0 };
-      }
-      studentMap[studentKey].subjects[subjectName].total++;
-      if (!record.present) {
-        studentMap[studentKey].subjects[subjectName].absences++;
-      }
-    });
-
-    // Render table
-    const container = document.getElementById('report-table-container');
-    const students = Object.values(studentMap).sort((a, b) => a.name.localeCompare(b.name));
-
-    container.innerHTML = `
-      <table class="report-table">
-        <thead>
-          <tr>
-            <th>Alumno</th>
-            <th style="text-align:center">Horas Totales</th>
-            <th style="text-align:center">Inasistencias</th>
-            <th style="text-align:center">% Asistencia</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${students.map(s => {
-            const pct = s.total > 0 ? ((s.total - s.absences) / s.total * 100).toFixed(1) : '0.0';
-            const pctClass = parseFloat(pct) < 75 ? 'absence-high' : '';
-            return `
-              <tr>
-                <td>${Utils.escapeHTML(s.name)}</td>
-                <td class="absence-count">${s.total}</td>
-                <td class="absence-count ${s.absences > 0 ? 'absence-high' : ''}">${s.absences}</td>
-                <td class="absence-count ${pctClass}">${pct}%</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
-
-    // Render chart
-    this.renderChart(
-      students.map(s => s.name.split(',')[0]),
-      students.map(s => s.absences),
-      students.map(s => s.total - s.absences),
-      'Inasistencias por Alumno'
-    );
-  },
-
   renderChart(labels, absenceData, presentData, title) {
     const chartContainer = document.getElementById('report-chart-container');
     chartContainer.style.display = 'block';
@@ -349,22 +460,148 @@ const Reports = {
     });
   },
 
+  // ===================== EXPORT XLSX =====================
   exportXLSX() {
-    const table = document.querySelector('#report-table-container table');
-    if (!table) {
+    const type = document.getElementById('report-type')?.value;
+
+    if (type === 'monthly' && this.lastGridData) {
+      this.exportMonthlyGridXLSX();
+    } else {
+      // Fallback: export HTML table for student detail
+      const table = document.querySelector('#report-table-container table:not(.monthly-grid)');
+      if (!table) {
+        Utils.toastWarning('No hay datos para exportar');
+        return;
+      }
+      try {
+        const wb = XLSX.utils.table_to_book(table, { sheet: 'Reporte' });
+        const reportTitle = document.getElementById('report-title')?.textContent || 'reporte';
+        const filename = `reporte_${reportTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_áéíóúñ]/g, '')}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        Utils.toastSuccess('Reporte exportado');
+      } catch (e) {
+        console.error('Export error:', e);
+        Utils.toastError('Error al exportar reporte');
+      }
+    }
+  },
+
+  exportMonthlyGridXLSX() {
+    const data = this.lastGridData;
+    if (!data || !data.students || data.students.length === 0) {
       Utils.toastWarning('No hay datos para exportar');
       return;
     }
 
+    const { students, attendance, holidayDates, yearMonth } = data;
+    const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const dayAbbr = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+    const [year, month] = yearMonth.split('-').map(Number);
+
+    // Build working days
+    const lastDay = new Date(year, month, 0).getDate();
+    const workDays = [];
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(year, month - 1, d);
+      const dow = date.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const dateStr = `${yearMonth}-${String(d).padStart(2, '0')}`;
+        workDays.push({ day: d, dateStr, dayName: dayAbbr[dow], isHoliday: holidayDates.has(dateStr) });
+      }
+    }
+
+    // Build attendance map
+    const attMap = {};
+    attendance.forEach(a => {
+      if (!attMap[a.student_id]) attMap[a.student_id] = {};
+      if (!attMap[a.student_id][a.date]) {
+        attMap[a.student_id][a.date] = { hasPresent: false, hasAbsent: false };
+      }
+      if (a.present) attMap[a.student_id][a.date].hasPresent = true;
+      else attMap[a.student_id][a.date].hasAbsent = true;
+    });
+
+    // Sort students
+    const sortedStudents = [...students].sort((a, b) => {
+      const cmp = (a.apellido || '').localeCompare(b.apellido || '');
+      if (cmp !== 0) return cmp;
+      return (a.nombre || '').localeCompare(b.nombre || '');
+    });
+
+    // Build AOA (array of arrays) for SheetJS
+    const aoa = [];
+
+    // Row 1: Month header
+    const row1 = ['', ''];
+    workDays.forEach(() => row1.push(`${monthNames[month - 1]} ${year}`));
+    aoa.push(row1);
+
+    // Row 2: Day names
+    const row2 = ['Nro', 'Apellido y Nombre'];
+    workDays.forEach(wd => row2.push(wd.isHoliday ? `${wd.dayName} (F)` : wd.dayName));
+    aoa.push(row2);
+
+    // Row 3: Day numbers
+    const row3 = ['', ''];
+    workDays.forEach(wd => row3.push(wd.day));
+    aoa.push(row3);
+
+    // Student rows
+    sortedStudents.forEach((student, idx) => {
+      const row = [idx + 1, `${student.apellido || ''}, ${student.nombre || ''}`];
+
+      workDays.forEach(wd => {
+        if (student.status === 'inactivo' && student.fecha_egreso && student.fecha_egreso < wd.dateStr) {
+          row.push('Baja');
+          return;
+        }
+        if (student.fecha_ingreso && student.fecha_ingreso > wd.dateStr) {
+          row.push('');
+          return;
+        }
+        if (wd.isHoliday) {
+          row.push('F');
+          return;
+        }
+        const dayAtt = attMap[student.id]?.[wd.dateStr];
+        if (dayAtt) {
+          if (dayAtt.hasPresent) row.push('P');
+          else if (dayAtt.hasAbsent) row.push('A');
+          else row.push('');
+        } else {
+          row.push('');
+        }
+      });
+
+      aoa.push(row);
+    });
+
     try {
-      const wb = XLSX.utils.table_to_book(table, { sheet: 'Reporte' });
-      const reportTitle = document.getElementById('report-title')?.textContent || 'reporte';
-      const filename = `reporte_asistencia_${reportTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_áéíóúñ]/g, '')}.xlsx`;
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Set column widths
+      const colWidths = [{ wch: 5 }, { wch: 30 }];
+      workDays.forEach(() => colWidths.push({ wch: 5 }));
+      ws['!cols'] = colWidths;
+
+      // Merge month header row
+      if (workDays.length > 0) {
+        ws['!merges'] = [
+          { s: { r: 0, c: 2 }, e: { r: 0, c: 1 + workDays.length } }
+        ];
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, monthNames[month - 1]);
+
+      const courseName = students[0]?.courses?.name || 'Curso';
+      const filename = `Planilla_${courseName}_${monthNames[month - 1]}_${year}.xlsx`;
       XLSX.writeFile(wb, filename);
-      Utils.toastSuccess('Reporte exportado');
+      Utils.toastSuccess('Planilla exportada a Excel');
     } catch (e) {
       console.error('Export error:', e);
-      Utils.toastError('Error al exportar reporte');
+      Utils.toastError('Error al exportar planilla');
     }
   }
 };

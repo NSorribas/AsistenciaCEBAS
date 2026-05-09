@@ -48,12 +48,52 @@
 - Horas libres y recreos correctamente diferenciados
 
 ### Reportes
-- Reportes **por alumno** o **por curso**
+
+#### Planilla Mensual
+Grilla mensual tipo planilla escolar, similar al formato manual de papel. Cada fila es un alumno y cada columna es un día hábil del mes seleccionado.
+
+**Estructura de la grilla:**
+- 3 filas de encabezado: nombre del mes, día de la semana (Lun/Mar/Mié/Jue/Vie), número de día
+- Columnas fijas: **Nro** (orden alfabético) y **Apellido y Nombre** (sticky al hacer scroll)
+- Columnas de días: solo días hábiles (Lun-Vie), sin sábados ni domingos
+
+**Contenido de cada celda según condición:**
+
+| Condición | Valor en la celda | Estilo visual |
+|---|---|---|
+| Alumno presente (al menos una hora) | **P** | Verde, negrita |
+| Alumno ausente (todas las horas ausentes) | **A** | Rojo, negrita |
+| Día feriado | **F** | Fondo gris oscuro (visible en impresión B&W) |
+| Alumno dado de baja (después de fecha de egreso, dentro del mes) | **Baja** | Gris claro, cursiva |
+| Alumno aún no ingresado (antes de fecha de ingreso) | *(celda vacía)* | Sin contenido |
+| Sin asistencia registrada ese día | *(celda vacía)* | Sin contenido |
+
+**Reglas de visualización de alumnos:**
+- Los alumnos **activos** siempre aparecen
+- Los alumnos **dados de baja** aparecen solo si su fecha de egreso cae dentro del mes seleccionado (se muestra "Baja" desde el día siguiente al egreso hasta el final del mes)
+- A partir del mes siguiente al egreso, el alumno ya no aparece en la planilla
+- Los alumnos se ordenan alfabéticamente por apellido y nombre
+- El número de orden (Nro) es puramente secuencial alfabético, no está vinculado al ID del alumno
+
+**Filtros disponibles:**
+- **Curso** (obligatorio): seleccionar el curso para la planilla
+- **Mes** (obligatorio): seleccionar el mes/año a visualizar
+- **Alumno** (opcional): filtrar para ver un solo alumno en la planilla
+
+**Exportación a XLSX:**
+- Encabezado del mes con celdas combinadas
+- Columnas Nro y Apellido y Nombre fijas
+- Bordes en todas las celdas
+- Feriados marcados con "(F)" en el encabezado de día
+- Nombre del archivo: `Planilla_{Curso}_{MES}_{AÑO}.xlsx`
+
+#### Detalle por Alumno
+Reporte individual con desglose por materia:
 - Períodos: **Mensual**, **YTD** (año a la fecha) o **rango personalizado**
 - Desglose de inasistencias por materia
-- Porcentaje de asistencia
-- Gráficos de barras interactivos (Chart.js)
-- **Exportación a XLSX** de cualquier reporte
+- Porcentaje de asistencia por materia y total
+- Gráfico de barras interactivo (Chart.js)
+- **Exportación a XLSX**
 
 ### Configuración
 - Gestión de **cursos**, **materias**, **feriados** y **ausencias de docentes**
@@ -258,7 +298,7 @@ La app usa la **anon key** de Supabase, que es pública por diseño (se envía e
 - [ ] Autenticación de usuarios (preceptores, administradores)
 - [ ] Justificación de inasistencias
 - [ ] Notificaciones por inasistencias reiteradas
-- [ ] Reporte de libreta/imprimible
+- [x] Reporte de planilla mensual imprimible
 - [ ] Modo offline con sincronización
 - [ ] Panel de administración avanzado
 

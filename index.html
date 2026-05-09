@@ -36,6 +36,10 @@
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <span>Asistencia</span>
       </a>
+      <a href="#/justifications" class="nav-item" data-view="justifications">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Justificaciones</span>
+      </a>
       <a href="#/students" class="nav-item" data-view="students">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Alumnos</span>
@@ -197,7 +201,20 @@ CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING 
 -- MIGRACIÓN: Si ya tenés las tablas creadas, ejecutá esto aparte
 -- =============================================
 ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_entrada TIME;
-ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;</pre>
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;
+
+-- Justificaciones (ausencias justificadas)
+CREATE TABLE IF NOT EXISTS justifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  justificacion TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, date)
+);
+
+ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);</pre>
             </div>
 
             <form id="setup-form" class="setup-form">
@@ -303,6 +320,30 @@ ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;</pre>
             <div class="attendance-save-bar">
               <button id="btn-save-attendance" class="btn btn-primary btn-lg btn-block">Guardar Asistencia</button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Justifications View -->
+      <section id="view-justifications" class="view">
+        <div class="justificaciones-container">
+          <div class="justificaciones-select">
+            <div class="attendance-form-row">
+              <div class="form-group">
+                <label for="just-course">Curso</label>
+                <select id="just-course" class="select-input">
+                  <option value="">Seleccionar curso...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="just-date">Fecha</label>
+                <input type="date" id="just-date" class="input-field">
+              </div>
+            </div>
+            <button id="btn-load-justifications" class="btn btn-primary btn-lg btn-block" disabled>Buscar Ausentes</button>
+          </div>
+          <div id="justifications-list" class="justificaciones-list" style="display:none;">
+            <!-- Absent students with justification fields -->
           </div>
         </div>
       </section>
@@ -533,6 +574,7 @@ ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;</pre>
   <script src="js/students.js"></script>
   <script src="js/schedule.js"></script>
   <script src="js/attendance.js"></script>
+  <script src="js/justificaciones.js"></script>
   <script src="js/reports.js"></script>
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>

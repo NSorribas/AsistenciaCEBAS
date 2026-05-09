@@ -65,6 +65,7 @@ Grilla mensual tipo planilla escolar, similar al formato manual de papel. Cada f
 |---|---|---|
 | Alumno presente todas las horas (horarios default) | **P** | Verde, negrita |
 | Alumno ausente todas las horas | **A** | Rojo, negrita |
+| Alumno ausente con justificación | **A\*** | Amarillo oscuro, fondo amarillo claro (tooltip con motivo) |
 | Alumno que llegó tarde (hora de entrada posterior al default) | **T** | Violeta, fondo lila claro |
 | Alumno que se retiró antes (hora de salida anterior al default) | **RA** | Violeta, fondo índigo claro |
 | Alumno que llegó tarde Y se retiró antes | **T/RA** | Violeta oscuro, fondo lila |
@@ -109,6 +110,7 @@ El resumen **"Xp / Ya"** junto a los campos de hora indica cuántas horas cáted
 - Columnas Nro y Apellido y Nombre fijas
 - Bordes en todas las celdas
 - Feriados marcados con "(F)" en el encabezado de día
+- Ausencias justificadas exportadas como **A\***
 - Nombre del archivo: `Planilla_{Curso}_{MES}_{AÑO}.xlsx`
 
 #### Detalle por Alumno
@@ -118,6 +120,15 @@ Reporte individual con desglose por materia:
 - Porcentaje de asistencia por materia y total
 - Gráfico de barras interactivo (Chart.js)
 - **Exportación a XLSX**
+
+### Justificaciones de Ausencias
+- Selección de curso y fecha para buscar alumnos ausentes
+- Lista automática de alumnos que figuran como ausentes en la fecha seleccionada
+- Campo de texto libre para completar la justificación de cada ausencia
+- Al guardar una justificación, la ausencia se marca como **A\*** en la planilla mensual
+- Si se borra la justificación, la ausencia vuelve a mostrarse como **A**
+- Badge visual "Justificado" en tiempo real al completar el campo
+- Tooltip al pasar el mouse sobre **A\*** en la planilla mensual (muestra el motivo)
 
 ### Configuración
 - Gestión de **cursos**, **materias**, **feriados** y **ausencias de docentes**
@@ -240,6 +251,19 @@ CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
+
+-- Justificaciones de ausencias
+CREATE TABLE IF NOT EXISTS justifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  justificacion TEXT NOT NULL DEFAULT ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, date)
+);
+
+ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
 ```
 
 ### 3. Configurar la conexión en la app
@@ -281,6 +305,7 @@ AsistenciaCEBAS/
     ├── students.js         # Gestión de alumnos
     ├── schedule.js         # Horarios y carga predefinida
     ├── attendance.js       # Toma de asistencia
+    ├── justificaciones.js  # Justificaciones de ausencias
     ├── reports.js          # Reportes y exportación XLSX
     └── config.js           # Cursos, materias, feriados, aus. docentes
 ```

@@ -180,7 +180,7 @@ const Reports = {
   },
 
   renderMonthlyGrid(data) {
-    const { students, attendance, holidayDates, dayDefaults, yearMonth } = data;
+    const { students, attendance, justificationsMap, holidayDates, dayDefaults, yearMonth } = data;
 
     if (!students || students.length === 0) {
       const container = document.getElementById('report-table-container');
@@ -295,8 +295,14 @@ const Reports = {
           // No attendance record
           rowCells += `<td></td>`;
         } else if (!dayAtt.hasPresent && dayAtt.hasAbsent) {
-          // All absent
-          rowCells += `<td class="cell-absent">A</td>`;
+          // All absent — check if justified
+          const justKey = `${student.id}|${wd.dateStr}`;
+          const isJustified = justificationsMap && justificationsMap[justKey];
+          if (isJustified) {
+            rowCells += `<td class="cell-absent-justified" title="${Utils.escapeHTML(isJustified)}">A*</td>`;
+          } else {
+            rowCells += `<td class="cell-absent">A</td>`;
+          }
         } else if (dayAtt.hasPresent) {
           // Some or all present — determine P / T / RA / T·RA
           const defaults = dayDefaults?.[wd.dateStr];
@@ -516,7 +522,7 @@ const Reports = {
       return;
     }
 
-    const { students, attendance, holidayDates, dayDefaults, yearMonth } = data;
+    const { students, attendance, justificationsMap, holidayDates, dayDefaults, yearMonth } = data;
     const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
                         'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const dayAbbr = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -593,7 +599,9 @@ const Reports = {
         if (!dayAtt) {
           row.push('');
         } else if (!dayAtt.hasPresent && dayAtt.hasAbsent) {
-          row.push('A');
+          const justKey = `${student.id}|${wd.dateStr}`;
+          const isJustified = justificationsMap && justificationsMap[justKey];
+          row.push(isJustified ? 'A*' : 'A');
         } else if (dayAtt.hasPresent) {
           const defaults = dayDefaults?.[wd.dateStr];
           const horaEntrada = dayAtt.hora_entrada;

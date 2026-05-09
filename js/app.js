@@ -6,7 +6,7 @@
 
 const App = {
   currentView: 'setup',
-  views: ['setup', 'home', 'attendance', 'students', 'schedule', 'reports', 'settings'],
+  views: ['setup', 'home', 'attendance', 'justifications', 'students', 'schedule', 'reports', 'settings'],
   initialized: false,
   dbReady: false,
 
@@ -144,6 +144,7 @@ const App = {
       setup: 'Configuración',
       home: 'Inicio',
       attendance: 'Asistencia',
+      justifications: 'Justificaciones',
       students: 'Alumnos',
       schedule: 'Horarios',
       reports: 'Reportes',
@@ -164,6 +165,10 @@ const App = {
       case 'attendance':
         Attendance.ensureInit();
         await Attendance.populateCourseSelect();
+        break;
+      case 'justifications':
+        Justificaciones.ensureInit();
+        await Justificaciones.populateCourseSelect();
         break;
       case 'students':
         Students.ensureInit();

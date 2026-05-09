@@ -406,6 +406,46 @@ const DB = {
     if (error) throw error;
   },
 
+  // ===================== JUSTIFICATIONS =====================
+  async getJustifications(filters = {}) {
+    let query = this.client
+      .from('justifications')
+      .select('*');
+
+    if (filters.date) query = query.eq('date', filters.date);
+    if (filters.studentId) query = query.eq('student_id', filters.studentId);
+    if (filters.studentIds && filters.studentIds.length > 0) {
+      query = query.in('student_id', filters.studentIds);
+    }
+    if (filters.dateFrom) query = query.gte('date', filters.dateFrom);
+    if (filters.dateTo) query = query.lte('date', filters.dateTo);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async saveJustifications(records) {
+    this.clearCache(['justifications']);
+    const { data, error } = await this.client
+      .from('justifications')
+      .upsert(records, { onConflict: 'student_id,date' })
+      .select();
+    if (error) throw error;
+    return data || [];
+  },
+
+  async deleteJustifications(date, studentIds) {
+    if (!studentIds || studentIds.length === 0) return;
+    this.clearCache(['justifications']);
+    const { error } = await this.client
+      .from('justifications')
+      .delete()
+      .eq('date', date)
+      .in('student_id', studentIds);
+    if (error) throw error;
+  },
+
   // ===================== HOLIDAYS =====================
   async getHolidays() {
     const key = this._cacheKey('holidays');
@@ -554,6 +594,24 @@ const DB = {
       .in('student_id', studentIds);
     if (attErr) throw attErr;
 
+    // Get justifications for these students in this month
+    const { data: justificationsData, error: justErr } = await this.client
+      .from('justifications')
+      .select('student_id, date, justificacion')
+      .gte('date', dateFrom)
+      .lte('date', dateTo)
+      .in('student_id', studentIds);
+    if (justErr) throw justErr;
+
+    // Build justifications map: "student_id|date" -> justificacion
+    const justificationsMap = {};
+    (justificationsData || []).forEach(j => {
+      const key = `${j.student_id}|${j.date}`;
+      if (j.justificacion && j.justificacion.trim()) {
+        justificationsMap[key] = j.justificacion;
+      }
+    });
+
     // Get holidays for this month
     const holidays = await this.getHolidays();
     const monthHolidays = holidays.filter(h => h.date >= dateFrom && h.date <= dateTo);
@@ -601,7 +659,8 @@ const DB = {
 
     return {
       students,
-      attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
+      #attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
+      justificationsMap,
       holidayDates,
       holidays: monthHolidays,
       dayDefaults,

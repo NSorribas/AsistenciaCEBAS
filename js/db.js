@@ -659,7 +659,7 @@ const DB = {
 
     return {
       students,
-      #attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
+      attendance: (attendance || []).filter(a => !a.schedule?.is_recess),
       justificationsMap,
       holidayDates,
       holidays: monthHolidays,

@@ -16,6 +16,32 @@ const Schedule = {
     { slot: 8, start: '11:30', end: '12:05' }
   ],
 
+  // Turno tarde — placeholder times until user provides actual schedule
+  timeSlotsTarde: [
+    { slot: 1, start: '13:00', end: '13:35' },
+    { slot: 2, start: '13:35', end: '14:10' },
+    { slot: 3, start: '14:10', end: '14:45' },
+    { slot: 4, start: '14:45', end: '15:20' },
+    { slot: 5, start: '15:20', end: '15:35', recess: true },  // Recreo
+    { slot: 6, start: '15:35', end: '16:10' },
+    { slot: 7, start: '16:10', end: '16:45' },
+    { slot: 8, start: '16:45', end: '17:20' }
+  ],
+
+  currentCourseTurno: 'mañana',
+
+  // Helper: get time slots for a given turno
+  getSlotsForTurno(turno) {
+    return turno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+  },
+
+  // Helper: get time slots for a course ID (async, queries DB)
+  async getSlotsForCourse(courseId) {
+    const courses = await DB.getCourses();
+    const course = courses.find(c => c.id === courseId);
+    return this.getSlotsForTurno(course?.turno || 'mañana');
+  },
+
   days: [
     { num: 1, name: 'Lunes' },
     { num: 2, name: 'Martes' },
@@ -71,6 +97,12 @@ const Schedule = {
 
     try {
       this.currentSchedule = await DB.getSchedule(courseId);
+
+      // Determine turno for the selected course
+      const courses = await DB.getCourses();
+      const course = courses.find(c => c.id === courseId);
+      this.currentCourseTurno = course?.turno || 'mañana';
+
       this.render();
     } catch (e) {
       console.error('Error loading schedule:', e);
@@ -81,6 +113,8 @@ const Schedule = {
   render() {
     const container = document.getElementById('schedule-grid');
     if (!container) return;
+
+    const activeTimeSlots = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
 
     const scheduleMap = {};
     this.currentSchedule.forEach(s => {
@@ -96,7 +130,7 @@ const Schedule = {
       </thead>
       <tbody>`;
 
-    this.timeSlots.forEach(ts => {
+    activeTimeSlots.forEach(ts => {
       if (ts.recess) {
         html += `<tr>
           <td class="time-col">${ts.start} - ${ts.end}</td>
@@ -184,7 +218,8 @@ const Schedule = {
       `<option value="${d.num}" ${(entry?.day_of_week || preDay) === d.num ? 'selected' : ''}>${d.name}</option>`
     ).join('');
 
-    const slotOptions = this.timeSlots.filter(t => !t.recess).map(t =>
+    const activeTimeSlots = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+    const slotOptions = activeTimeSlots.filter(t => !t.recess).map(t =>
       `<option value="${t.slot}" ${(entry?.hour_slot || preSlot) === t.slot ? 'selected' : ''}>${t.start} - ${t.end}</option>`
     ).join('');
 
@@ -232,7 +267,8 @@ const Schedule = {
       const selectedSlot = parseInt(document.getElementById('sf-slot').value);
       const selectedDay = parseInt(document.getElementById('sf-day').value);
       const subjectId = document.getElementById('sf-subject').value || null;
-      const timeSlot = this.timeSlots.find(t => t.slot === selectedSlot);
+      const activeTimeSlots2 = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+      const timeSlot = activeTimeSlots2.find(t => t.slot === selectedSlot);
 
       const data = {
         course_id: courseId,
@@ -294,10 +330,14 @@ const Schedule = {
 
   // ---- Batch load from image data ----
   async loadDefaultSchedule(courseId) {
-    // This is the schedule from the image provided by the user
     const subjects = await DB.getSubjects();
     const subjectMap = {};
     subjects.forEach(s => { subjectMap[s.name.toLowerCase()] = s.id; });
+
+    // Get course to determine turno
+    const courses = await DB.getCourses();
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
 
     const scheduleData = {
       '1A': {
@@ -445,21 +485,19 @@ const Schedule = {
     };
 
     // Build entries for the selected course
-    const courses = await DB.getCourses();
-    const course = courses.find(c => c.id === courseId);
-    if (!course) return;
-
     const courseSchedule = scheduleData[course.name];
     if (!courseSchedule) {
       Utils.toastWarning('No hay horario predefinido para el curso ' + course.name);
       return;
     }
 
+    const activeSlots = course.turno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+
     const entries = [];
     for (const [dayStr, slots] of Object.entries(courseSchedule)) {
       const day = parseInt(dayStr);
       for (const s of slots) {
-        const timeSlot = this.timeSlots.find(t => t.slot === s.slot);
+        const timeSlot = activeSlots.find(t => t.slot === s.slot);
         const subjectId = subjectMap[s.subject.toLowerCase()] || null;
         entries.push({
           course_id: courseId,

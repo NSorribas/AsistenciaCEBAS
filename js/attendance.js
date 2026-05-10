@@ -8,6 +8,7 @@
 const Attendance = {
   currentCourseId: null,
   currentDate: null,
+  currentCourseTurno: 'mañana',
   scheduleData: [],
   attendanceData: [],
   studentsData: [],
@@ -72,6 +73,11 @@ const Attendance = {
 
     if (!courseId || !date) return;
 
+    // Determine turno for schedule preview
+    const courses = await DB.getCourses();
+    const course = courses.find(c => c.id === courseId);
+    this.currentCourseTurno = course?.turno || 'mañana';
+
     // Check if it's a weekend
     const dayOfWeek = Utils.getDayOfWeek(date);
     if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -108,7 +114,7 @@ const Attendance = {
 
       let chipsHtml = '';
       daySchedule.sort((a, b) => a.hour_slot - b.hour_slot).forEach(s => {
-        const timeSlot = Schedule.timeSlots.find(t => t.slot === s.hour_slot);
+        const timeSlot = Schedule.getSlotsForTurno(this.currentCourseTurno).find(t => t.slot === s.hour_slot);
         const timeStr = timeSlot ? `${timeSlot.start}-${timeSlot.end}` : '';
         if (s.is_recess) {
           chipsHtml += `<span class="schedule-chip recess">Recreo ${timeStr}</span>`;
@@ -159,6 +165,11 @@ const Attendance = {
 
     this.currentCourseId = courseId;
     this.currentDate = date;
+
+    // Determine turno for this course
+    const courses = await DB.getCourses();
+    const course = courses.find(c => c.id === courseId);
+    this.currentCourseTurno = course?.turno || 'mañana';
 
     const container = document.getElementById('attendance-student-list');
     Utils.showLoading(container, 'Cargando alumnos...');

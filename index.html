@@ -231,7 +231,10 @@ CREATE TABLE IF NOT EXISTS justifications (
 );
 
 ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);</pre>
+CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
+
+-- Turno (mañana/tarde) para cursos
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'tarde'));</pre>
             </div>
 
             <form id="setup-form" class="setup-form">

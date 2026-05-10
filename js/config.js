@@ -78,7 +78,7 @@ const Config = {
             <div class="settings-item-name">${Utils.escapeHTML(c.name)}</div>
           </div>
           <div class="settings-item-actions">
-            <button class="btn btn-sm btn-outline btn-edit-course" data-id="${c.id}" data-name="${Utils.escapeHTML(c.name)}">
+            <button class="btn btn-sm btn-outline btn-edit-course" data-id="${c.id}" data-name="${Utils.escapeHTML(c.name)}" data-turno="${c.turno || 'mañana'}">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
             <button class="btn btn-sm btn-outline btn-delete-course" data-id="${c.id}" data-name="${Utils.escapeHTML(c.name)}">
@@ -93,7 +93,7 @@ const Config = {
 
       // Bind events
       container.querySelectorAll('.btn-edit-course').forEach(btn => {
-        btn.addEventListener('click', () => this.showCourseForm(btn.dataset.id, btn.dataset.name));
+        btn.addEventListener('click', () => this.showCourseForm(btn.dataset.id, btn.dataset.name, btn.dataset.turno));
       });
       container.querySelectorAll('.btn-delete-course').forEach(btn => {
         btn.addEventListener('click', () => this.confirmDeleteCourse(btn.dataset.id, btn.dataset.name));
@@ -106,7 +106,7 @@ const Config = {
     }
   },
 
-  showCourseForm(editId = null, currentName = '') {
+  showCourseForm(editId = null, currentName = '', currentTurno = 'mañana') {
     const isEdit = !!editId;
     const html = `
       <div class="modal-header">
@@ -118,7 +118,14 @@ const Config = {
       <form id="course-form">
         <div class="form-group">
           <label for="cf-name">Nombre del Curso</label>
-          <input type="text" id="cf-name" class="input-field" value="${Utils.escapeHTML(currentName)}" placeholder="Ej: 1A" required>
+          <input type="text" id="cf-name" class="input-field" value="${Utils.escapeHTML(currentName)}" placeholder="Ej: 1A, 1C" required>
+        </div>
+        <div class="form-group">
+          <label for="cf-turno">Turno</label>
+          <select id="cf-turno" class="select-input" required>
+            <option value="mañana" ${currentTurno === 'mañana' ? 'selected' : ''}>Mañana</option>
+            <option value="tarde" ${currentTurno === 'tarde' ? 'selected' : ''}>Tarde</option>
+          </select>
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-outline" onclick="Utils.hideModal()">Cancelar</button>
@@ -131,14 +138,15 @@ const Config = {
     document.getElementById('course-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('cf-name').value.trim();
+      const turno = document.getElementById('cf-turno').value;
       if (!name) return;
 
       try {
         if (isEdit) {
-          await DB.updateCourse(editId, name);
+          await DB.updateCourse(editId, { name, turno });
           Utils.toastSuccess('Curso actualizado');
         } else {
-          await DB.addCourse(name);
+          await DB.addCourse(name, turno);
           Utils.toastSuccess('Curso creado');
         }
         Utils.hideModal();

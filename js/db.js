@@ -114,22 +114,23 @@ const DB = {
     return result;
   },
 
-  async addCourse(name) {
+  async addCourse(name, turno = 'mañana') {
     this.clearCache(['courses']);
     const { data, error } = await this.client
       .from('courses')
-      .insert({ name })
+      .insert({ name, turno })
       .select()
       .single();
     if (error) throw error;
     return data;
   },
 
-  async updateCourse(id, name) {
+  async updateCourse(id, updates) {
     this.clearCache(['courses']);
+    const updateData = typeof updates === 'string' ? { name: updates } : updates;
     const { data, error } = await this.client
       .from('courses')
-      .update({ name })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

@@ -3,7 +3,9 @@
    Offline-first caching strategy
    ============================================= */
 
-const CACHE_NAME = 'cebas-v1';
+// ⚠️ Bump this version on every deployment to force cache invalidation
+const CACHE_NAME = 'cebas-v2';
+const APP_VERSION = '1.1.0';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -41,7 +43,7 @@ const API_HOSTS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets');
+      console.log('[SW] Pre-caching static assets for', CACHE_NAME);
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => {
       // Skip waiting so the new SW activates immediately
@@ -67,6 +69,16 @@ self.addEventListener('activate', (event) => {
       return self.clients.claim();
     })
   );
+});
+
+// ---- Handle messages from the app ----
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data?.type === 'GET_VERSION') {
+    event.source.postMessage({ type: 'SW_VERSION', version: APP_VERSION, cache: CACHE_NAME });
+  }
 });
 
 // ---- Fetch: routing strategy ----

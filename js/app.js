@@ -290,29 +290,100 @@ const App = {
   }
 };
 
+// ---- PWA Update Manager ----
+const PWAUpdate = {
+  _swReg: null,
+  _newWorker: null,
+  _updateCheckInterval: null,
+
+  async init() {
+    if (!('serviceWorker' in navigator)) return;
+
+    try {
+      this._swReg = await navigator.serviceWorker.register('./sw.js');
+      console.log('[PWA] Service Worker registered:', this._swReg.scope);
+
+      // Listen for controller change (new SW took over)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // New SW activated and claimed this page — reload to get fresh assets
+        console.log('[PWA] New controller detected, reloading...');
+        window.location.reload();
+      });
+
+      // Listen for updates
+      this._swReg.addEventListener('updatefound', () => {
+        this._newWorker = this._swReg.installing;
+        this._newWorker.addEventListener('statechange', () => {
+          if (this._newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version downloaded and waiting to activate
+            this.showUpdateBanner();
+          }
+        });
+      });
+
+      // Periodic update check every 30 minutes
+      this._updateCheckInterval = setInterval(() => {
+        this.checkForUpdate();
+      }, 30 * 60 * 1000);
+
+      // Also check when the page becomes visible again
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.checkForUpdate();
+        }
+      });
+
+    } catch (err) {
+      console.warn('[PWA] Service Worker registration failed:', err);
+    }
+  },
+
+  async checkForUpdate() {
+    if (this._swReg) {
+      try {
+        await this._swReg.update();
+      } catch (e) {
+        // Silently fail — might be offline
+      }
+    }
+  },
+
+  showUpdateBanner() {
+    // Don't show multiple banners
+    if (document.getElementById('update-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.style.cssText = `
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #0E2F44; color: #fff;
+      padding: 12px 16px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      z-index: 10000; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+      font-size: 0.875rem;
+    `;
+    banner.innerHTML = `
+      <span>Nueva versión disponible</span>
+      <button id="btn-apply-update" style="
+        background: #2E9CCA; color: #fff; border: none;
+        padding: 8px 20px; border-radius: 6px; cursor: pointer;
+        font-weight: 600; font-size: 0.875rem;
+      ">Actualizar</button>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('btn-apply-update').addEventListener('click', () => {
+      // Tell the waiting SW to skip waiting and activate
+      if (this._newWorker) {
+        this._newWorker.postMessage({ type: 'SKIP_WAITING' });
+      }
+      // The controllerchange event will fire and reload the page
+    });
+  }
+};
+
 // ---- Boot ----
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
-
-  // Register Service Worker for PWA
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then((reg) => {
-        console.log('[PWA] Service Worker registered:', reg.scope);
-
-        // Listen for updates
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
-              // New version available — could show a toast
-              Utils.toastInfo('Nueva versión disponible. Recargá para actualizar.');
-            }
-          });
-        });
-      })
-      .catch((err) => {
-        console.warn('[PWA] Service Worker registration failed:', err);
-      });
-  }
+  PWAUpdate.init();
 });

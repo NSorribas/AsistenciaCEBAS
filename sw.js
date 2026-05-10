@@ -1,13 +1,19 @@
 /* =============================================
    CEBAS Asistencia - Service Worker
-   Offline-first caching strategy
+   Auto-updating caching strategy:
+   - Code (HTML/JS/CSS) → Stale While Revalidate (auto-updates!)
+   - Images/icons → Cache First (rarely change)
+   - Supabase API → Network First
+   - CDN libraries → Stale While Revalidate
+   
+   No need to bump CACHE_NAME on every deploy.
+   Only bump when you want to force a full cache clear.
    ============================================= */
 
-// ⚠️ Bump this version on every deployment to force cache invalidation
-const CACHE_NAME = 'cebas-v3';
+const CACHE_NAME = 'cebas-cache';
 const APP_VERSION = '1.2.0';
 
-// Static assets to pre-cache on install
+// Assets to pre-cache on install (for instant first load + offline support)
 const PRECACHE_ASSETS = [
   './',
   './index.html',
@@ -29,45 +35,37 @@ const PRECACHE_ASSETS = [
   './assets/apple-touch-icon.png'
 ];
 
-// CDN assets to cache on first use
-const CDN_HOSTS = [
-  'cdn.jsdelivr.net'
-];
+// Image extensions → cache-first (they rarely change)
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.ico', '.webp'];
 
-// Supabase API host — always network-first
-const API_HOSTS = [
-  'supabase.co'
-];
+// Supabase API host → network-first
+const API_HOSTS = ['supabase.co'];
 
-// ---- Install: pre-cache static assets ----
+// CDN host → stale-while-revalidate
+const CDN_HOSTS = ['cdn.jsdelivr.net'];
+
+// ---- Install: pre-cache assets for offline ----
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets for', CACHE_NAME);
+      console.log('[SW] Pre-caching assets');
       return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => {
-      // Skip waiting so the new SW activates immediately
-      return self.skipWaiting();
-    }).catch((err) => {
-      console.warn('[SW] Pre-cache failed (some assets may be offline-only):', err);
-    })
+    }).then(() => self.skipWaiting())
+    .catch((err) => console.warn('[SW] Pre-cache partial fail:', err))
   );
 });
 
 // ---- Activate: clean up old caches ----
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => {
           console.log('[SW] Removing old cache:', key);
           return caches.delete(key);
         })
-      );
-    }).then(() => {
-      // Claim all clients so the SW controls pages immediately
-      return self.clients.claim();
-    })
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
@@ -81,11 +79,11 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// ---- Fetch: routing strategy ----
+// ---- Fetch: smart routing ----
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Strategy 1: Supabase API calls → Network First
+  // Strategy 1: Supabase API → Network First
   if (API_HOSTS.some(host => url.hostname.endsWith(host))) {
     event.respondWith(networkFirst(event.request));
     return;
@@ -97,9 +95,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy 3: Local static assets → Cache First
+  // Strategy 3: Local assets — split by type
   if (url.origin === self.location.origin) {
-    event.respondWith(cacheFirst(event.request));
+    const isImage = IMAGE_EXTENSIONS.some(ext => url.pathname.endsWith(ext));
+
+    if (isImage) {
+      // Images/icons: Cache First (rarely change, safe to cache aggressively)
+      event.respondWith(cacheFirst(event.request));
+    } else {
+      // Code (HTML/JS/CSS/manifest): Stale While Revalidate
+      // → Serves cached version instantly, fetches fresh in background
+      // → Next page load gets the new version automatically!
+      // → NO more manual cache bumping needed!
+      event.respondWith(staleWhileRevalidate(event.request));
+    }
     return;
   }
 
@@ -120,7 +129,6 @@ async function cacheFirst(request) {
     }
     return response;
   } catch (err) {
-    // For navigation requests, return the cached index.html
     if (request.mode === 'navigate') {
       const fallback = await caches.match('./index.html');
       if (fallback) return fallback;
@@ -148,11 +156,12 @@ async function networkFirst(request) {
   }
 }
 
-// ---- Stale While Revalidate: return cache, update in background ----
+// ---- Stale While Revalidate: return cache instantly, update in background ----
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await caches.match(request);
 
+  // Fetch fresh version in background
   const fetchPromise = fetch(request).then((response) => {
     if (response.ok) {
       cache.put(request, response.clone());
@@ -160,6 +169,7 @@ async function staleWhileRevalidate(request) {
     return response;
   }).catch(() => cached);
 
+  // Return cached immediately if available, otherwise wait for network
   return cached || fetchPromise;
 }
 

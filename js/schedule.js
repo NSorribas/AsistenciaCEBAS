@@ -16,16 +16,16 @@ const Schedule = {
     { slot: 8, start: '11:30', end: '12:05' }
   ],
 
-  // Turno tarde — placeholder times until user provides actual schedule
+  // Turno tarde — horarios desde las 16:00
   timeSlotsTarde: [
-    { slot: 1, start: '13:00', end: '13:35' },
-    { slot: 2, start: '13:35', end: '14:10' },
-    { slot: 3, start: '14:10', end: '14:45' },
-    { slot: 4, start: '14:45', end: '15:20' },
-    { slot: 5, start: '15:20', end: '15:35', recess: true },  // Recreo
-    { slot: 6, start: '15:35', end: '16:10' },
-    { slot: 7, start: '16:10', end: '16:45' },
-    { slot: 8, start: '16:45', end: '17:20' }
+    { slot: 1, start: '16:00', end: '16:35' },
+    { slot: 2, start: '16:35', end: '17:10' },
+    { slot: 3, start: '17:10', end: '17:45' },
+    { slot: 4, start: '17:45', end: '18:20' },
+    { slot: 5, start: '18:20', end: '18:35', recess: true },  // Recreo
+    { slot: 6, start: '18:35', end: '19:10' },
+    { slot: 7, start: '19:10', end: '19:45' },
+    { slot: 8, start: '19:45', end: '20:20' }
   ],
 
   currentCourseTurno: 'mañana',

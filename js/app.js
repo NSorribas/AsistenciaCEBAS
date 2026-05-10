@@ -116,13 +116,13 @@ const App = {
     this.showView(hash);
   },
 
-  showView(viewName) {
+  showView(viewName, force = false) {
     if (!this.views.includes(viewName)) {
       viewName = 'home';
     }
 
-    // Skip if already on this view (prevents redundant loads)
-    if (this.currentView === viewName && this.initialized) return;
+    // Skip if already on this view (unless forced, e.g. from routing after DB connect)
+    if (this.currentView === viewName && !force) return;
     this.currentView = viewName;
 
     // Hide all views
@@ -240,9 +240,11 @@ const App = {
       connDot.title = 'Conectado a base de datos';
     }
 
-    // Hide splash and show home
+    // Hide splash
     this.hideSplash();
-    this.showView('home');
+
+    // Route to the current hash (or home if no hash)
+    this.handleRouting();
   },
 
   copySQL() {

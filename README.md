@@ -6,13 +6,15 @@
 
 <p align="center">
   Aplicación web SPA para el registro y seguimiento de asistencia de alumnos,<br>
-  diseñada para funcionar de forma óptima en dispositivos móviles.
+  diseñada para funcionar de forma óptima en dispositivos móviles.<br>
+  Instalable como PWA en celulares y escritorio.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Estado-En%20Desarrollo-2E9CCA?style=for-the-badge" alt="Estado">
   <img src="https://img.shields.io/badge/Plataforma-GitHub%20Pages-0E2F44?style=for-the-badge" alt="Plataforma">
   <img src="https://img.shields.io/badge/Base%20de%20Datos-Supabase-3ECF8E?style=for-the-badge" alt="Supabase">
+  <img src="https://img.shields.io/badge/PWA-Instalable-6A1B9A?style=for-the-badge" alt="PWA">
 </p>
 
 ---
@@ -24,6 +26,26 @@
 ---
 
 ## Funcionalidades
+
+### PWA (Progressive Web App)
+- **Instalable** en celulares (Android/iOS) y escritorio (Chrome/Edge)
+- Funciona como app nativa: icono en el home screen, pantalla completa, sin barra de navegador
+- **Auto-actualización**: la app detecta nuevas versiones y muestra un banner para actualizar
+- Estrategia de caché inteligente:
+  - Código (HTML/JS/CSS) → stale-while-revalidate (se actualiza automáticamente)
+  - Imágenes e iconos → cache-first (carga instantánea)
+  - Datos de Supabase → network-first (siempre datos frescos)
+  - Librerías CDN → stale-while-revalidate
+- Soporte offline básico (interfaz cacheada, datos requieren conexión)
+
+### Turno Mañana y Turno Vespertino
+- Soporte para **turno mañana** (1A, 2A, 3A) y **turno vespertino** (1C, 2C, 3C)
+- Al crear un curso se selecciona el turno (Mañana / Vespertino)
+- La app asigna automáticamente los horarios correspondientes según el turno
+- Horarios de la mañana: 07:45 a 12:05
+- Horarios del vespertino: 16:45 a 21:05
+- Misma lista de materias para ambos turnos, solo cambian las horas cátedra
+- Los reportes y la toma de asistencia funcionan idéntico para ambos turnos
 
 ### Gestión de Alumnos
 - Alta individual con datos completos (apellido, nombre, DNI, curso, estado, fechas de ingreso/egreso)
@@ -45,6 +67,7 @@
 ### Horarios Escolares
 - Configuración del horario anual por curso y por día
 - Grilla visual con las materias asignadas a cada hora
+- Horarios automáticos según el turno del curso (mañana o vespertino)
 - Carga predefinida del horario para los cursos 1A, 2A y 3A
 - Edición individual de cada celda del horario
 - Horas libres y recreos correctamente diferenciados
@@ -131,7 +154,7 @@ Reporte individual con desglose por materia:
 - Tooltip al pasar el mouse sobre **A\*** en la planilla mensual (muestra el motivo)
 
 ### Configuración
-- Gestión de **cursos**, **materias**, **feriados** y **ausencias de docentes**
+- Gestión de **cursos** (con selector de turno Mañana/Vespertino), **materias**, **feriados** y **ausencias de docentes**
 - Conexión a base de datos Supabase
 - Prueba de conexión y estado en tiempo real
 
@@ -146,6 +169,8 @@ Reporte individual con desglose por materia:
 | **Chart.js** | Gráficos de reportes |
 | **SheetJS (XLSX)** | Importación y exportación de archivos Excel |
 | **GitHub Pages** | Hosting estático gratuito |
+| **Service Worker** | Caché inteligente, offline y auto-actualización (PWA) |
+| **Web App Manifest** | Instalación como app nativa (PWA) |
 
 ---
 
@@ -169,6 +194,7 @@ La app ya está configurada y conectada a Supabase. Si necesitás recrear la bas
 CREATE TABLE IF NOT EXISTS courses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'vespertino')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -213,6 +239,8 @@ CREATE TABLE IF NOT EXISTS attendance (
   schedule_id UUID REFERENCES schedule(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   present BOOLEAN DEFAULT FALSE,
+  hora_entrada TIME,
+  hora_salida TIME,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(student_id, schedule_id, date)
 );
@@ -235,6 +263,16 @@ CREATE TABLE IF NOT EXISTS teacher_absences (
   UNIQUE(subject_id, course_id, date)
 );
 
+-- Justificaciones de ausencias
+CREATE TABLE IF NOT EXISTS justifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  justificacion TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, date)
+);
+
 -- Habilitar RLS y políticas de acceso
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
@@ -243,6 +281,7 @@ ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teacher_absences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all on courses" ON courses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
@@ -251,18 +290,6 @@ CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
-
--- Justificaciones de ausencias
-CREATE TABLE IF NOT EXISTS justifications (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  justificacion TEXT NOT NULL DEFAULT ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(student_id, date)
-);
-
-ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
 ```
 
@@ -279,10 +306,17 @@ La anon key se encuentra en **Settings > API > anon public**.
 
 ### 4. Cargar datos iniciales
 
-1. Ir a **Configuración > Cursos** y crear los cursos (1A, 2A, 3A)
+1. Ir a **Configuración > Cursos** y crear los cursos seleccionando el turno (Mañana o Vespertino). Ejemplo: 1A (Mañana), 1C (Vespertino)
 2. Ir a **Configuración > Materias** y crear las materias
-3. Ir a **Configuración > Cursos** y usar el botón "Cargar horario predefinido" para cada curso
+3. Ir a **Configuración > Cursos** y usar el botón "Cargar horario predefinido" para cada curso (solo para cursos de la mañana: 1A, 2A, 3A)
 4. Listo para tomar asistencia!
+
+### 5. Instalar como PWA (opcional)
+
+1. Abrir la app en Chrome (Android/escritorio) o Safari (iOS)
+2. En Chrome: clic en el icono de instalar en la barra de direcciones, o menú → "Instalar aplicación"
+3. En iOS (Safari): botón Compartir → "Agregar a pantalla de inicio"
+4. La app se instala con icono propio y funciona sin barra de navegador
 
 ---
 
@@ -291,19 +325,25 @@ La anon key se encuentra en **Settings > API > anon public**.
 ```
 AsistenciaCEBAS/
 ├── index.html              # SPA principal (todas las vistas)
+├── manifest.json           # PWA manifest (instalación como app)
+├── sw.js                   # Service Worker (caché, offline, auto-update)
 ├── assets/
 │   ├── favicon.svg         # Favicon SVG (principal)
 │   ├── favicon-16.png      # Favicon PNG 16x16
 │   ├── favicon.ico         # Favicon clásico
-│   └── logo-cebas48.png    # Logo del CEBAS
+│   ├── logo-cebas48.png    # Logo del CEBAS
+│   ├── icon-192.png        # PWA icon 192x192
+│   ├── icon-512.png        # PWA icon 512x512
+│   ├── icon-maskable-512.png # PWA icon maskable
+│   └── apple-touch-icon.png # iOS touch icon
 ├── css/
 │   └── styles.css          # Estilos mobile-first responsive
 └── js/
-    ├── app.js              # Routing, sidebar, splash screen, inicialización
+    ├── app.js              # Routing, sidebar, splash screen, PWA update manager
     ├── db.js               # Conexión Supabase y operaciones CRUD
     ├── utils.js            # Toasts, modales, formateo, helpers
     ├── students.js         # Gestión de alumnos
-    ├── schedule.js         # Horarios y carga predefinida
+    ├── schedule.js         # Horarios, turnos (mañana/vespertino), carga predefinida
     ├── attendance.js       # Toma de asistencia
     ├── justificaciones.js  # Justificaciones de ausencias
     ├── reports.js          # Reportes y exportación XLSX
@@ -345,10 +385,12 @@ La app usa la **anon key** de Supabase, que es pública por diseño (se envía e
 ## Roadmap
 
 - [ ] Autenticación de usuarios (preceptores, administradores)
-- [ ] Justificación de inasistencias
+- [x] Justificación de inasistencias
 - [ ] Notificaciones por inasistencias reiteradas
 - [x] Reporte de planilla mensual imprimible
-- [ ] Modo offline con sincronización
+- [x] Soporte para turno vespertino
+- [x] PWA instalable con auto-actualización
+- [ ] Modo offline completo con sincronización
 - [ ] Panel de administración avanzado
 
 ---

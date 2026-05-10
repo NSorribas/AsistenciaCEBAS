@@ -16,23 +16,23 @@ const Schedule = {
     { slot: 8, start: '11:30', end: '12:05' }
   ],
 
-  // Turno tarde — horarios desde las 16:00
-  timeSlotsTarde: [
-    { slot: 1, start: '16:00', end: '16:35' },
-    { slot: 2, start: '16:35', end: '17:10' },
-    { slot: 3, start: '17:10', end: '17:45' },
-    { slot: 4, start: '17:45', end: '18:20' },
-    { slot: 5, start: '18:20', end: '18:35', recess: true },  // Recreo
-    { slot: 6, start: '18:35', end: '19:10' },
-    { slot: 7, start: '19:10', end: '19:45' },
-    { slot: 8, start: '19:45', end: '20:20' }
+  // Turno vespertino — horarios desde las 16:45
+  timeSlotsVespertino: [
+    { slot: 1, start: '16:45', end: '17:20' },
+    { slot: 2, start: '17:20', end: '17:55' },
+    { slot: 3, start: '17:55', end: '18:30' },
+    { slot: 4, start: '18:30', end: '19:05' },
+    { slot: 5, start: '19:05', end: '19:20', recess: true },  // Recreo
+    { slot: 6, start: '19:20', end: '19:55' },
+    { slot: 7, start: '19:55', end: '20:30' },
+    { slot: 8, start: '20:30', end: '21:05' }
   ],
 
   currentCourseTurno: 'mañana',
 
   // Helper: get time slots for a given turno
   getSlotsForTurno(turno) {
-    return turno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+    return turno === 'vespertino' ? this.timeSlotsVespertino : this.timeSlots;
   },
 
   // Helper: get time slots for a course ID (async, queries DB)
@@ -114,7 +114,7 @@ const Schedule = {
     const container = document.getElementById('schedule-grid');
     if (!container) return;
 
-    const activeTimeSlots = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+    const activeTimeSlots = this.currentCourseTurno === 'vespertino' ? this.timeSlotsVespertino : this.timeSlots;
 
     const scheduleMap = {};
     this.currentSchedule.forEach(s => {
@@ -218,7 +218,7 @@ const Schedule = {
       `<option value="${d.num}" ${(entry?.day_of_week || preDay) === d.num ? 'selected' : ''}>${d.name}</option>`
     ).join('');
 
-    const activeTimeSlots = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+    const activeTimeSlots = this.currentCourseTurno === 'vespertino' ? this.timeSlotsVespertino : this.timeSlots;
     const slotOptions = activeTimeSlots.filter(t => !t.recess).map(t =>
       `<option value="${t.slot}" ${(entry?.hour_slot || preSlot) === t.slot ? 'selected' : ''}>${t.start} - ${t.end}</option>`
     ).join('');
@@ -267,7 +267,7 @@ const Schedule = {
       const selectedSlot = parseInt(document.getElementById('sf-slot').value);
       const selectedDay = parseInt(document.getElementById('sf-day').value);
       const subjectId = document.getElementById('sf-subject').value || null;
-      const activeTimeSlots2 = this.currentCourseTurno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+      const activeTimeSlots2 = this.currentCourseTurno === 'vespertino' ? this.timeSlotsVespertino : this.timeSlots;
       const timeSlot = activeTimeSlots2.find(t => t.slot === selectedSlot);
 
       const data = {
@@ -491,7 +491,7 @@ const Schedule = {
       return;
     }
 
-    const activeSlots = course.turno === 'tarde' ? this.timeSlotsTarde : this.timeSlots;
+    const activeSlots = course.turno === 'vespertino' ? this.timeSlotsVespertino : this.timeSlots;
 
     const entries = [];
     for (const [dayStr, slots] of Object.entries(courseSchedule)) {

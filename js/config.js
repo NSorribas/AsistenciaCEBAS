@@ -124,7 +124,7 @@ const Config = {
           <label for="cf-turno">Turno</label>
           <select id="cf-turno" class="select-input" required>
             <option value="mañana" ${currentTurno === 'mañana' ? 'selected' : ''}>Mañana</option>
-            <option value="tarde" ${currentTurno === 'tarde' ? 'selected' : ''}>Tarde</option>
+            <option value="vespertino" ${currentTurno === 'vespertino' ? 'selected' : ''}>Vespertino</option>
           </select>
         </div>
         <div class="form-actions">

@@ -4,8 +4,8 @@
    ============================================= */
 
 // ⚠️ Bump this version on every deployment to force cache invalidation
-const CACHE_NAME = 'cebas-v2';
-const APP_VERSION = '1.1.0';
+const CACHE_NAME = 'cebas-v3';
+const APP_VERSION = '1.2.0';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [

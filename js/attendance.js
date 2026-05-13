@@ -96,6 +96,15 @@ const Attendance = {
       return;
     }
 
+    // Check if this course has a salida educativa on this date
+    const isSalidaEducativa = await DB.isCursoEnSalidaEducativa(courseId, date);
+    if (isSalidaEducativa) {
+      warnings.style.display = 'block';
+      warnings.innerHTML = '<p>El curso tiene una salida educativa en esta fecha. No hay clases.</p>';
+      btn.disabled = true;
+      return;
+    }
+
     // Show schedule preview
     try {
       const schedule = await DB.getSchedule(courseId);

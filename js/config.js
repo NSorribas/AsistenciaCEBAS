@@ -28,6 +28,7 @@ const Config = {
         if (target === 'courses') this.showCourseForm();
         else if (target === 'subjects') this.showSubjectForm();
         else if (target === 'holidays') this.showHolidayForm();
+        else if (target === 'salidas_educativas') this.showSalidaEducativaForm();
         else if (target === 'teacher_absences') this.showTeacherAbsenceForm();
       });
     });
@@ -54,6 +55,7 @@ const Config = {
       this.loadCourses(),
       this.loadSubjects(),
       this.loadHolidays(),
+      this.loadSalidasEducativas(),
       this.loadTeacherAbsences(),
       this.updateDBStatus()
     ]);
@@ -409,6 +411,170 @@ const Config = {
         await this.loadHolidays();
       } catch (e) {
         Utils.toastError('Error al eliminar feriado');
+      }
+    });
+  },
+
+  // ===================== SALIDAS EDUCATIVAS =====================
+  async loadSalidasEducativas() {
+    const container = document.getElementById('salidas-ed-list');
+    if (!container) return;
+
+    try {
+      const salidas = await DB.getSalidasEducativas();
+      if (salidas.length === 0) {
+        Utils.showEmpty(container, 'Sin salidas educativas', 'Registram las salidas educativas usando el botón de arriba.');
+        return;
+      }
+
+      container.innerHTML = salidas.map(se => {
+        const cursos = (se.salida_educativa_cursos || [])
+          .map(sc => sc.courses?.name || 'N/A')
+          .join(', ');
+        return `
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <div class="settings-item-name">${Utils.formatDateLong(se.fecha)}</div>
+              <div class="settings-item-detail">${Utils.escapeHTML(se.descripcion || 'Sin descripción')} — Cursos: ${Utils.escapeHTML(cursos || 'Ninguno')}</div>
+            </div>
+            <div class="settings-item-actions">
+              <button class="btn btn-sm btn-outline btn-delete-se" data-id="${se.id}" data-name="${Utils.formatDateLong(se.fecha)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.btn-delete-se').forEach(btn => {
+        btn.addEventListener('click', () => this.confirmDeleteSalidaEducativa(btn.dataset.id, btn.dataset.name));
+      });
+    } catch (e) {
+      console.error('Error loading salidas educativas:', e);
+    }
+  },
+
+  async showSalidaEducativaForm() {
+    let courses = [];
+    try {
+      courses = await DB.getCourses();
+    } catch (e) {
+      Utils.toastError('Error al cargar cursos');
+      return;
+    }
+
+    // Group courses by turno for better UX
+    const maniana = courses.filter(c => c.turno === 'mañana');
+    const vespertino = courses.filter(c => c.turno === 'vespertino');
+
+    const courseToggles = (list, label) => {
+      if (list.length === 0) return '';
+      return `
+        <div class="se-turno-group">
+          <div class="se-turno-label">${label}</div>
+          <div class="se-course-toggles">
+            ${list.map(c => `
+              <label class="se-toggle-item">
+                <input type="checkbox" class="se-course-check" data-course-id="${c.id}">
+                <span>${Utils.escapeHTML(c.name)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    const html = `
+      <div class="modal-header">
+        <h3>Nueva Salida Educativa</h3>
+        <button class="modal-close" onclick="Utils.hideModal()">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="se-form">
+        <div class="form-group">
+          <label for="se-date">Fecha</label>
+          <input type="date" id="se-date" class="input-field" value="${Utils.getToday()}" required>
+        </div>
+        <div class="form-group">
+          <label for="se-desc">Descripción</label>
+          <input type="text" id="se-desc" class="input-field" placeholder="Ej: Visita al museo" required>
+        </div>
+        <div class="form-group">
+          <label>Cursos que participan</label>
+          <div class="se-actions-row">
+            <button type="button" class="btn btn-sm btn-outline" id="se-select-all">Seleccionar todos</button>
+            <button type="button" class="btn btn-sm btn-outline" id="se-deselect-all">Ninguno</button>
+          </div>
+          ${courseToggles(maniana, 'Turno Mañana')}
+          ${courseToggles(vespertino, 'Turno Vespertino')}
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" onclick="Utils.hideModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Salida</button>
+        </div>
+      </form>
+    `;
+    Utils.showModal(html);
+
+    // Select all / Deselect all
+    document.getElementById('se-select-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.se-course-check').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('se-deselect-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.se-course-check').forEach(cb => cb.checked = false);
+    });
+
+    document.getElementById('se-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fecha = document.getElementById('se-date').value;
+      const descripcion = document.getElementById('se-desc').value.trim();
+      const courseIds = [];
+      document.querySelectorAll('.se-course-check:checked').forEach(cb => {
+        courseIds.push(cb.dataset.courseId);
+      });
+
+      if (!fecha || !descripcion) return;
+      if (courseIds.length === 0) {
+        Utils.toastWarning('Seleccioná al menos un curso');
+        return;
+      }
+
+      try {
+        await DB.addSalidaEducativa(fecha, descripcion, courseIds);
+        Utils.toastSuccess('Salida educativa registrada');
+        Utils.hideModal();
+        await this.loadSalidasEducativas();
+      } catch (e) {
+        Utils.toastError('Error: ' + e.message);
+      }
+    });
+  },
+
+  confirmDeleteSalidaEducativa(id, name) {
+    const html = `
+      <div class="modal-header">
+        <h3>Eliminar Salida Educativa</h3>
+        <button class="modal-close" onclick="Utils.hideModal()">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p>¿Eliminar la salida educativa del <strong>${name}</strong>?</p>
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn btn-outline" onclick="Utils.hideModal()">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirm-del-se" data-id="${id}">Eliminar</button>
+      </div>
+    `;
+    Utils.showModal(html);
+
+    document.getElementById('btn-confirm-del-se').addEventListener('click', async () => {
+      try {
+        await DB.deleteSalidaEducativa(id);
+        Utils.toastSuccess('Salida educativa eliminada');
+        Utils.hideModal();
+        await this.loadSalidasEducativas();
+      } catch (e) {
+        Utils.toastError('Error al eliminar salida educativa');
       }
     });
   },

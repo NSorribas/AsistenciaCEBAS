@@ -493,6 +493,100 @@ const DB = {
     }
   },
 
+  // ===================== SALIDAS EDUCATIVAS =====================
+  async getSalidasEducativas(filters = {}) {
+    const key = this._cacheKey('salidas_educativas', filters);
+    const cached = this._getCached(key);
+    if (cached) return cached;
+
+    let query = this.client
+      .from('salidas_educativas')
+      .select('*, salida_educativa_cursos(id, course_id, courses(id, name, turno))')
+      .order('fecha', { ascending: false });
+
+    if (filters.fecha) query = query.eq('fecha', filters.fecha);
+    if (filters.fechaFrom) query = query.gte('fecha', filters.fechaFrom);
+    if (filters.fechaTo) query = query.lte('fecha', filters.fechaTo);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    const result = data || [];
+    this._setCache(key, result);
+    return result;
+  },
+
+  async addSalidaEducativa(fecha, descripcion, courseIds) {
+    this.clearCache(['salidas_educativas']);
+    // Insert the main record
+    const { data: salida, error: salidaErr } = await this.client
+      .from('salidas_educativas')
+      .insert({ fecha, descripcion })
+      .select()
+      .single();
+    if (salidaErr) throw salidaErr;
+
+    // Insert course associations
+    if (courseIds && courseIds.length > 0) {
+      const rows = courseIds.map(cid => ({
+        salida_educativa_id: salida.id,
+        course_id: cid
+      }));
+      const { error: relErr } = await this.client
+        .from('salida_educativa_cursos')
+        .insert(rows);
+      if (relErr) throw relErr;
+    }
+
+    // Return with relations
+    return await this.getSalidaEducativaById(salida.id);
+  },
+
+  async getSalidaEducativaById(id) {
+    const { data, error } = await this.client
+      .from('salidas_educativas')
+      .select('*, salida_educativa_cursos(id, course_id, courses(id, name, turno))')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteSalidaEducativa(id) {
+    this.clearCache(['salidas_educativas']);
+    // CASCADE will delete salida_educativa_cursos rows
+    const { error } = await this.client
+      .from('salidas_educativas')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Check if a course has a salida educativa on a given date */
+  async isCursoEnSalidaEducativa(courseId, date) {
+    try {
+      const salidas = await this.getSalidasEducativas({ fecha: date });
+      return salidas.some(s =>
+        s.salida_educativa_cursos?.some(sc => sc.course_id === courseId)
+      );
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /** Get all course IDs that have a salida educativa on a given date */
+  async getCursoIdsEnSalidaEducativa(date) {
+    try {
+      const salidas = await this.getSalidasEducativas({ fecha: date });
+      const courseIds = new Set();
+      salidas.forEach(s => {
+        s.salida_educativa_cursos?.forEach(sc => courseIds.add(sc.course_id));
+      });
+      return courseIds;
+    } catch (e) {
+      return new Set();
+    }
+  },
+
   // ===================== TEACHER ABSENCES =====================
   async getTeacherAbsences(filters = {}) {
     let query = this.client
@@ -618,6 +712,19 @@ const DB = {
     const monthHolidays = holidays.filter(h => h.date >= dateFrom && h.date <= dateTo);
     const holidayDates = new Set(monthHolidays.map(h => h.date));
 
+    // Get salidas educativas for this month that affect this course
+    const salidasEducativas = await this.getSalidasEducativas({ fechaFrom: dateFrom, fechaTo: dateTo });
+    // Build map: dateStr -> Set of course_ids affected by salidas educativas
+    const salidasEducativasMap = {};
+    salidasEducativas.forEach(se => {
+      if (se.fecha >= dateFrom && se.fecha <= dateTo) {
+        se.salida_educativa_cursos?.forEach(sc => {
+          if (!salidasEducativasMap[se.fecha]) salidasEducativasMap[se.fecha] = new Set();
+          salidasEducativasMap[se.fecha].add(sc.course_id);
+        });
+      }
+    });
+
     // Fetch schedule for default entry/exit times per day
     const schedule = await this.getSchedule(courseId);
 
@@ -664,6 +771,7 @@ const DB = {
       justificationsMap,
       holidayDates,
       holidays: monthHolidays,
+      salidasEducativasMap,
       dayDefaults,
       dateFrom,
       dateTo,

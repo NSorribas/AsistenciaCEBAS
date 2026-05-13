@@ -234,7 +234,27 @@ ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
 
 -- Turno (mañana/vespertino) para cursos
-ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'vespertino'));</pre>
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'vespertino'));
+
+-- Salidas Educativas
+CREATE TABLE IF NOT EXISTS salidas_educativas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha DATE NOT NULL,
+  descripcion TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS salida_educativa_cursos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  salida_educativa_id UUID REFERENCES salidas_educativas(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  UNIQUE(salida_educativa_id, course_id)
+);
+
+ALTER TABLE salidas_educativas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE salida_educativa_cursos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on salidas_educativas" ON salidas_educativas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL USING (true) WITH CHECK (true);</pre>
             </div>
 
             <form id="setup-form" class="setup-form">
@@ -490,6 +510,7 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK 
             <button class="settings-tab active" data-tab="tab-courses">Cursos</button>
             <button class="settings-tab" data-tab="tab-subjects">Materias</button>
             <button class="settings-tab" data-tab="tab-holidays">Feriados</button>
+            <button class="settings-tab" data-tab="tab-salidas-ed">Salidas Ed.</button>
             <button class="settings-tab" data-tab="tab-teacher-abs">Aus. Docentes</button>
             <button class="settings-tab" data-tab="tab-db">Base de Datos</button>
           </div>
@@ -533,6 +554,20 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK 
             </div>
             <div id="holidays-list" class="settings-list">
               <!-- Holiday items -->
+            </div>
+          </div>
+
+          <!-- Tab: Salidas Educativas -->
+          <div id="tab-salidas-ed" class="settings-panel">
+            <div class="settings-panel-header">
+              <h3>Salidas Educativas</h3>
+              <button class="btn btn-primary btn-sm btn-add-item" data-target="salidas_educativas">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+            <div id="salidas-ed-list" class="settings-list">
+              <!-- Salidas educativas items -->
             </div>
           </div>
 

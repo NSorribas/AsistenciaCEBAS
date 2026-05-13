@@ -1335,6 +1335,48 @@ a:hover {
   color: var(--color-text-secondary);
 }
 
+/* Salidas Educativas modal styles */
+.se-turno-group {
+  margin-bottom: 12px;
+}
+.se-turno-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+.se-course-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.se-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.se-toggle-item:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-hover);
+}
+.se-toggle-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+}
+.se-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .settings-item-actions {
   display: flex;
   gap: 4px;
@@ -1688,6 +1730,13 @@ a:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-light);
   font-size: 0.5625rem;
+  font-weight: 600;
+}
+
+.monthly-grid .cell-salida-educativa {
+  background: var(--color-bg-hover);
+  color: var(--color-text-light);
+  font-size: 0.5rem;
   font-weight: 600;
 }
 

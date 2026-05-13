@@ -180,7 +180,7 @@ const Reports = {
   },
 
   renderMonthlyGrid(data) {
-    const { students, attendance, justificationsMap, holidayDates, dayDefaults, yearMonth } = data;
+    const { students, attendance, justificationsMap, holidayDates, salidasEducativasMap, dayDefaults, yearMonth, courseId } = data;
 
     if (!students || students.length === 0) {
       const container = document.getElementById('report-table-container');
@@ -286,6 +286,13 @@ const Reports = {
         // Check if it's a holiday
         if (wd.isHoliday) {
           rowCells += `<td class="cell-holiday">F</td>`;
+          return;
+        }
+
+        // Check if this course has a salida educativa on this date
+        const seCourseIds = salidasEducativasMap?.[wd.dateStr];
+        if (seCourseIds && seCourseIds.has(courseId)) {
+          rowCells += `<td class="cell-salida-educativa">SE</td>`;
           return;
         }
 
@@ -522,7 +529,7 @@ const Reports = {
       return;
     }
 
-    const { students, attendance, justificationsMap, holidayDates, dayDefaults, yearMonth } = data;
+    const { students, attendance, justificationsMap, holidayDates, salidasEducativasMap, dayDefaults, yearMonth, courseId } = data;
     const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
                         'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const dayAbbr = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -593,6 +600,12 @@ const Reports = {
         }
         if (wd.isHoliday) {
           row.push('F');
+          return;
+        }
+        // Check if this course has a salida educativa on this date
+        const seCourseIds = salidasEducativasMap?.[wd.dateStr];
+        if (seCourseIds && seCourseIds.has(courseId)) {
+          row.push('SE');
           return;
         }
         const dayAtt = attMap[student.id]?.[wd.dateStr];

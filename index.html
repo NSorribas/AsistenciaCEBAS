@@ -121,13 +121,14 @@
               <button id="btn-copy-sql" class="btn btn-sm btn-outline">Copiar SQL</button>
               <pre id="sql-code">-- =============================================
 -- CEBAS Asistencia - Esquema de Base de Datos
--- Ejecutar en SQL Editor de Supabase
+-- Ejecutar completo en SQL Editor de Supabase
 -- =============================================
 
 -- Cursos
 CREATE TABLE IF NOT EXISTS courses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'vespertino')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -186,40 +187,6 @@ CREATE TABLE IF NOT EXISTS holidays (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ausencias de docentes
-CREATE TABLE IF NOT EXISTS teacher_absences (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(subject_id, course_id, date)
-);
-
--- Políticas RLS (habilitar acceso anónimo para simplificar)
-ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
-ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
-ALTER TABLE teacher_absences ENABLE ROW LEVEL SECURITY;
-
--- Permitir acceso completo con anon key
-CREATE POLICY "Allow all on courses" ON courses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
-
--- =============================================
--- MIGRACIÓN: Si ya tenés las tablas creadas, ejecutá esto aparte
--- =============================================
-ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_entrada TIME;
-ALTER TABLE attendance ADD COLUMN IF NOT EXISTS hora_salida TIME;
-
 -- Justificaciones (ausencias justificadas)
 CREATE TABLE IF NOT EXISTS justifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -230,11 +197,15 @@ CREATE TABLE IF NOT EXISTS justifications (
   UNIQUE(student_id, date)
 );
 
-ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
-
--- Turno (mañana/vespertino) para cursos
-ALTER TABLE courses ADD COLUMN IF NOT EXISTS turno TEXT DEFAULT 'mañana' CHECK (turno IN ('mañana', 'vespertino'));
+-- Ausencias de docentes
+CREATE TABLE IF NOT EXISTS teacher_absences (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(subject_id, course_id, date)
+);
 
 -- Salidas Educativas
 CREATE TABLE IF NOT EXISTS salidas_educativas (
@@ -251,8 +222,28 @@ CREATE TABLE IF NOT EXISTS salida_educativa_cursos (
   UNIQUE(salida_educativa_id, course_id)
 );
 
+-- =============================================
+-- RLS: Habilitar y permitir acceso anónimo
+-- =============================================
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_absences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salidas_educativas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salida_educativa_cursos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all on courses" ON courses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on salidas_educativas" ON salidas_educativas FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL USING (true) WITH CHECK (true);</pre>
             </div>

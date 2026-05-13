@@ -93,6 +93,7 @@ Grilla mensual tipo planilla escolar, similar al formato manual de papel. Cada f
 | Alumno que se retiró antes (hora de salida anterior al default) | **RA** | Violeta, fondo índigo claro |
 | Alumno que llegó tarde Y se retiró antes | **T/RA** | Violeta oscuro, fondo lila |
 | Día feriado | **F** | Fondo gris oscuro (visible en impresión B&W) |
+| Curso con salida educativa | **SE** | Fondo gris oscuro (similar a feriado) |
 | Alumno dado de baja (después de fecha de egreso, dentro del mes) | **Baja** | Gris claro, cursiva |
 | Alumno aún no ingresado (antes de fecha de ingreso) | *(celda vacía)* | Sin contenido |
 | Sin asistencia registrada ese día | *(celda vacía)* | Sin contenido |
@@ -133,7 +134,8 @@ El resumen **"Xp / Ya"** junto a los campos de hora indica cuántas horas cáted
 - Columnas Nro y Apellido y Nombre fijas
 - Bordes en todas las celdas
 - Feriados marcados con "(F)" en el encabezado de día
-- Ausencias justificadas exportadas como **A\***
+- Salidas educativas marcadas como **SE**
+- Ausencias justificadas exportadas como **A\**
 - Nombre del archivo: `Planilla_{Curso}_{MES}_{AÑO}.xlsx`
 
 #### Detalle por Alumno
@@ -153,8 +155,16 @@ Reporte individual con desglose por materia:
 - Badge visual "Justificado" en tiempo real al completar el campo
 - Tooltip al pasar el mouse sobre **A\*** en la planilla mensual (muestra el motivo)
 
+### Salidas Educativas
+- Registro de **salidas educativas** (excursiones, visitas, salidas didácticas) por curso y fecha
+- Seleccionar uno o varios cursos por salida (con toggles agrupados por turno: Mañana / Vespertino)
+- Campo de descripción para detallar la actividad
+- **Bloqueo automático** de la toma de asistencia para los cursos que tienen salida educativa en esa fecha
+- En la planilla mensual, los alumnos de los cursos con salida se muestran como **SE** con fondo gris (similar a feriado)
+- Gestión desde **Configuración > Salidas Educativas** (tab junto a Feriados y Ausencias de docentes)
+
 ### Configuración
-- Gestión de **cursos** (con selector de turno Mañana/Vespertino), **materias**, **feriados** y **ausencias de docentes**
+- Gestión de **cursos** (con selector de turno Mañana/Vespertino), **materias**, **feriados**, **ausencias de docentes** y **salidas educativas**
 - Conexión a base de datos Supabase
 - Prueba de conexión y estado en tiempo real
 
@@ -273,6 +283,22 @@ CREATE TABLE IF NOT EXISTS justifications (
   UNIQUE(student_id, date)
 );
 
+-- Salidas educativas (cabecera)
+CREATE TABLE IF NOT EXISTS salidas_educativas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha DATE NOT NULL,
+  descripcion TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Salidas educativas por curso (relación N:N)
+CREATE TABLE IF NOT EXISTS salida_educativa_cursos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  salida_educativa_id UUID REFERENCES salidas_educativas(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  UNIQUE(salida_educativa_id, course_id)
+);
+
 -- Habilitar RLS y políticas de acceso
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
@@ -291,6 +317,10 @@ CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH 
 CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
+ALTER TABLE salidas_educativas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE salida_educativa_cursos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on salidas_educativas" ON salidas_educativas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL USING (true) WITH CHECK (true);
 ```
 
 ### 3. Configurar la conexión en la app
@@ -347,7 +377,7 @@ AsistenciaCEBAS/
     ├── attendance.js       # Toma de asistencia
     ├── justificaciones.js  # Justificaciones de ausencias
     ├── reports.js          # Reportes y exportación XLSX
-    └── config.js           # Cursos, materias, feriados, aus. docentes
+    └── config.js           # Cursos, materias, feriados, aus. docentes, salidas educativas
 ```
 
 ---
@@ -386,6 +416,7 @@ La app usa la **anon key** de Supabase, que es pública por diseño (se envía e
 
 - [ ] Autenticación de usuarios (preceptores, administradores)
 - [x] Justificación de inasistencias
+- [x] Salidas educativas por curso (bloqueo de asistencia + SE en planilla)
 - [ ] Notificaciones por inasistencias reiteradas
 - [x] Reporte de planilla mensual imprimible
 - [x] Soporte para turno vespertino

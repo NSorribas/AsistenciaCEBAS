@@ -775,7 +775,8 @@ const DB = {
       dayDefaults,
       dateFrom,
       dateTo,
-      yearMonth
+      yearMonth,
+      courseId
     };
   },
 

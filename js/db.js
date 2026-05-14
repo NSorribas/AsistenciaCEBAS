@@ -67,9 +67,19 @@ const DB = {
     if (!this.client) return false;
     try {
       const { data, error } = await this.client.from('courses').select('id').limit(1);
-      if (error) throw error;
-      this.connected = true;
-      return true;
+      if (!error) {
+        this.connected = true;
+        return true;
+      }
+      // Permission denied = DB is reachable but role lacks table access
+      // This is expected when RLS requires authentication and user is not logged in yet
+      if (error.code === '42501' || (error.message && error.message.includes('permission denied'))) {
+        console.warn('DB reachable but lacks table access (expected for unauthenticated users)');
+        this.connected = true;
+        return true;
+      }
+      // Any other error = connection truly failed
+      throw error;
     } catch (e) {
       console.error('Connection test failed:', e);
       this.connected = false;

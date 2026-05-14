@@ -271,13 +271,13 @@ const App = {
     const titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[viewName] || 'CEBAS';
 
-    // Show/hide sidebar and topbar for login
+    // Show/hide sidebar and topbar (hidden for login and setup)
     const topbar = document.querySelector('.topbar');
     const sidebar = document.getElementById('sidebar');
-    if (viewName === 'login') {
+    if (viewName === 'login' || viewName === 'setup') {
       if (topbar) topbar.style.display = 'none';
       if (sidebar) sidebar.style.visibility = 'hidden';
-    } else if (viewName !== 'setup') {
+    } else {
       if (topbar) topbar.style.display = '';
       if (sidebar) sidebar.style.visibility = '';
     }

@@ -12,6 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Estado-En%20Desarrollo-2E9CCA?style=for-the-badge" alt="Estado">
+  <img src="https://img.shields.io/badge/Auth-Supabase%20Auth-6A1B9A?style=for-the-badge" alt="Auth">
   <img src="https://img.shields.io/badge/Plataforma-GitHub%20Pages-0E2F44?style=for-the-badge" alt="Plataforma">
   <img src="https://img.shields.io/badge/Base%20de%20Datos-Supabase-3ECF8E?style=for-the-badge" alt="Supabase">
   <img src="https://img.shields.io/badge/PWA-Instalable-6A1B9A?style=for-the-badge" alt="PWA">
@@ -163,6 +164,15 @@ Reporte individual con desglose por materia:
 - En la planilla mensual, los alumnos de los cursos con salida se muestran como **SE** con fondo gris (similar a feriado)
 - Gestión desde **Configuración > Salidas Educativas** (tab junto a Feriados y Ausencias de docentes)
 
+### Autenticación
+- **Pantalla de login** obligatoria — sin sesión activa no se puede acceder a ningún dato
+- Login con email y contraseña via **Supabase Auth**
+- Sesión persistente: al recargar la página no hace falta loguearse de nuevo
+- Detección automática de sesión expirada (redirige al login)
+- Botón **"Cerrar Sesión"** en el sidebar
+- **Row Level Security (RLS)**: solo el rol `authenticated` puede acceder a las tablas; `anon` no tiene acceso
+- Creación de usuarios desde el dashboard de Supabase (Authentication > Users)
+
 ### Configuración
 - Gestión de **cursos** (con selector de turno Mañana/Vespertino), **materias**, **feriados**, **ausencias de docentes** y **salidas educativas**
 - Conexión a base de datos Supabase
@@ -299,7 +309,7 @@ CREATE TABLE IF NOT EXISTS salida_educativa_cursos (
   UNIQUE(salida_educativa_id, course_id)
 );
 
--- Habilitar RLS y políticas de acceso
+-- Habilitar RLS y políticas de acceso (solo authenticated)
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
@@ -308,60 +318,45 @@ ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teacher_absences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE justifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow all on courses" ON courses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on schedule" ON schedule FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on holidays" ON holidays FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on teacher_absences" ON teacher_absences FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on justifications" ON justifications FOR ALL USING (true) WITH CHECK (true);
 ALTER TABLE salidas_educativas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salida_educativa_cursos ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all on salidas_educativas" ON salidas_educativas FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated access on courses" ON courses FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on subjects" ON subjects FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on students" ON students FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on schedule" ON schedule FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on attendance" ON attendance FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on holidays" ON holidays FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on teacher_absences" ON teacher_absences FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on justifications" ON justifications FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on salidas_educativas" ON salidas_educativas FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ============================================
 -- GRANTs explícitos para Data API (PostgREST)
--- Requerido a partir del cambio de Supabase (octubre 2025)
--- Sin estos grants, supabase-js no puede acceder a las tablas
+-- Solo authenticated tiene acceso (anon no puede leer ni escribir)
 -- ============================================
 
 -- Acceso al schema public
-GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 
 -- Secuencias (por si se usan SERIAL/BIGSERIAL)
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
--- GRANTs por tabla
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE courses TO anon;
+-- GRANTs por tabla (solo authenticated)
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE courses TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE subjects TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE subjects TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE students TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE students TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE schedule TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE schedule TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE attendance TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE attendance TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE holidays TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE holidays TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE teacher_absences TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE teacher_absences TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE justifications TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE justifications TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salidas_educativas TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salidas_educativas TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salida_educativa_cursos TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salida_educativa_cursos TO authenticated;
 
--- Default privileges: tablas futuras heredan grants automáticamente
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon;
+-- Default privileges: tablas futuras heredan grants automáticamente (solo authenticated)
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO anon;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO authenticated;
 ```
 
@@ -376,14 +371,21 @@ DEFAULT_KEY: 'TU-ANON-KEY',
 
 La anon key se encuentra en **Settings > API > anon public**.
 
-### 4. Cargar datos iniciales
+### 4. Crear usuarios de autenticación
+
+1. En el menú lateral de Supabase, ir a **Authentication > Users**
+2. Clic en **"Add user"** → **"Create new user"**
+3. Ingresar email y contraseña (marcar "Auto Confirm User" si no querés verificación por email)
+4. Repetir para cada usuario que necesite acceso (preceptores, administradores)
+
+### 5. Cargar datos iniciales
 
 1. Ir a **Configuración > Cursos** y crear los cursos seleccionando el turno (Mañana o Vespertino). Ejemplo: 1A (Mañana), 1C (Vespertino)
 2. Ir a **Configuración > Materias** y crear las materias
 3. Ir a **Configuración > Cursos** y usar el botón "Cargar horario predefinido" para cada curso (solo para cursos de la mañana: 1A, 2A, 3A)
 4. Listo para tomar asistencia!
 
-### 5. Instalar como PWA (opcional)
+### 6. Instalar como PWA (opcional)
 
 1. Abrir la app en Chrome (Android/escritorio) o Safari (iOS)
 2. En Chrome: clic en el icono de instalar en la barra de direcciones, o menú → "Instalar aplicación"
@@ -411,8 +413,8 @@ AsistenciaCEBAS/
 ├── css/
 │   └── styles.css          # Estilos mobile-first responsive
 └── js/
-    ├── app.js              # Routing, sidebar, splash screen, PWA update manager
-    ├── db.js               # Conexión Supabase y operaciones CRUD
+    ├── app.js              # Routing, sidebar, auth, splash screen, PWA update manager
+    ├── db.js               # Conexión Supabase, Auth y operaciones CRUD
     ├── utils.js            # Toasts, modales, formateo, helpers
     ├── students.js         # Gestión de alumnos
     ├── schedule.js         # Horarios, turnos (mañana/vespertino), carga predefinida
@@ -450,13 +452,22 @@ El archivo Excel debe tener estas columnas (el encabezado puede ser con o sin ma
 
 ## Seguridad
 
-La app usa la **anon key** de Supabase, que es pública por diseño (se envía en cada request del navegador). La seguridad de los datos se controla mediante **Row Level Security (RLS)** en Supabase. Para un uso más restrictivo, se puede implementar autenticación con Supabase Auth en futuras versiones.
+La app requiere **autenticación obligatoria** para acceder a cualquier dato. El flujo de seguridad es:
+
+1. **Supabase Auth**: los usuarios se crean en el dashboard de Supabase (Authentication > Users) con email y contraseña
+2. **Login**: la app muestra una pantalla de login; sin sesión activa no se puede acceder a la interfaz
+3. **Sesión persistente**: Supabase almacena el token JWT en `localStorage`, así que al recargar no hace falta loguearse de nuevo
+4. **Row Level Security (RLS)**: todas las tablas tienen RLS habilitado con políticas que **solo permiten acceso al rol `authenticated`**
+5. **Grants**: el rol `anon` **no tiene ningún permiso** sobre las tablas; solo `authenticated` puede hacer SELECT, INSERT, UPDATE y DELETE
+6. **anon key**: la app sigue usando la anon key pública de Supabase (va en cada request), pero cuando el usuario hace login, Supabase automáticamente incluye el JWT del usuario autenticado, cambiando el rol de `anon` a `authenticated` en las requests siguientes
+
+Para agregar un nuevo usuario: ir a **Supabase Dashboard > Authentication > Users > Add user**
 
 ---
 
 ## Roadmap
 
-- [ ] Autenticación de usuarios (preceptores, administradores)
+- [x] Autenticación de usuarios (Supabase Auth + RLS para authenticated only)
 - [x] Justificación de inasistencias
 - [x] Salidas educativas por curso (bloqueo de asistencia + SE en planilla)
 - [ ] Notificaciones por inasistencias reiteradas

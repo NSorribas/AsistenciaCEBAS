@@ -1,14 +1,14 @@
 /* =============================================
    CEBAS Asistencia - Main Application
-   Routing, sidebar, initialization
-   Optimized: splash screen, event dedup, caching
+   Routing, sidebar, initialization, auth
    ============================================= */
 
 const App = {
   currentView: 'setup',
-  views: ['setup', 'home', 'attendance', 'justifications', 'students', 'schedule', 'reports', 'settings'],
+  views: ['setup', 'login', 'home', 'attendance', 'justifications', 'students', 'schedule', 'reports', 'settings'],
   initialized: false,
   dbReady: false,
+  authReady: false,
 
   async init() {
     // Show splash immediately, hide all views
@@ -21,12 +21,35 @@ const App = {
       const connected = await DB.testConnection();
       if (connected) {
         this.dbReady = true;
-        this.onDBConnected();
+
+        // Check for existing auth session
+        const session = await DB.getSession();
+        if (session) {
+          this.authReady = true;
+          this.onDBConnected();
+        } else {
+          // DB works but no auth session → show login
+          this.hideSplash();
+          this.showView('login');
+        }
+
+        // Listen for auth state changes (token refresh, sign out from another tab, etc.)
+        DB.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && !this.authReady) {
+            this.authReady = true;
+            this.onDBConnected();
+          } else if (event === 'SIGNED_OUT') {
+            this.authReady = false;
+            this.handleSignOut();
+          }
+        });
       } else {
         DB.disconnect();
+        this.hideSplash();
         this.showView('setup');
       }
     } else {
+      this.hideSplash();
       this.showView('setup');
     }
 
@@ -97,18 +120,112 @@ const App = {
 
     // Copy SQL button
     document.getElementById('btn-copy-sql')?.addEventListener('click', () => this.copySQL());
+
+    // Login form
+    document.getElementById('login-form')?.addEventListener('submit', (e) => this.handleLogin(e));
+
+    // Logout button
+    document.getElementById('btn-logout')?.addEventListener('click', () => this.handleLogoutClick());
+  },
+
+  // ---- Auth ----
+  async handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+    const btnLogin = document.getElementById('btn-login');
+
+    if (!email || !password) {
+      errorEl.textContent = 'Completá email y contraseña';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    btnLogin.disabled = true;
+    btnLogin.textContent = 'Ingresando...';
+    errorEl.style.display = 'none';
+
+    try {
+      await DB.signIn(email, password);
+      this.authReady = true;
+      // onAuthStateChange will also fire, but we proactively proceed
+      this.onDBConnected();
+    } catch (err) {
+      console.error('Login error:', err);
+      let msg = 'Error al iniciar sesión';
+      if (err.message?.includes('Invalid login credentials')) {
+        msg = 'Email o contraseña incorrectos';
+      } else if (err.message?.includes('Email not confirmed')) {
+        msg = 'Email no confirmado. Verificá tu casilla de correo.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    } finally {
+      btnLogin.disabled = false;
+      btnLogin.textContent = 'Ingresar';
+    }
+  },
+
+  async handleLogoutClick() {
+    if (!confirm('¿Querés cerrar sesión?')) return;
+    await DB.signOut();
+    this.handleSignOut();
+  },
+
+  handleSignOut() {
+    this.authReady = false;
+    this._clearAuthUI();
+    this.showView('login');
+    // Clear password field
+    const pwField = document.getElementById('login-password');
+    if (pwField) pwField.value = '';
+  },
+
+  _updateAuthUI() {
+    const user = DB.getCurrentUser();
+    const emailEl = document.getElementById('auth-user-email');
+    const logoutBtn = document.getElementById('btn-logout');
+
+    if (user && emailEl) {
+      emailEl.textContent = user.email;
+      emailEl.style.display = 'block';
+    } else if (emailEl) {
+      emailEl.style.display = 'none';
+    }
+
+    if (logoutBtn) {
+      logoutBtn.style.display = user ? 'block' : 'none';
+    }
+  },
+
+  _clearAuthUI() {
+    const emailEl = document.getElementById('auth-user-email');
+    const logoutBtn = document.getElementById('btn-logout');
+    if (emailEl) emailEl.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'none';
   },
 
   // ---- Routing ----
   handleRouting() {
     const hash = window.location.hash.replace('#/', '') || 'home';
 
+    // No DB → setup
     if (!this.dbReady && hash !== 'setup') {
       this.showView('setup');
       return;
     }
 
-    if (this.dbReady && hash === 'setup') {
+    // DB ready but no auth → login
+    if (this.dbReady && !this.authReady && hash !== 'login') {
+      this.showView('login');
+      return;
+    }
+
+    // DB ready and auth → don't show setup or login
+    if (this.dbReady && this.authReady && (hash === 'setup' || hash === 'login')) {
       this.showView('home');
       return;
     }
@@ -142,6 +259,7 @@ const App = {
     // Update page title
     const titles = {
       setup: 'Configuración',
+      login: 'Iniciar Sesión',
       home: 'Inicio',
       attendance: 'Asistencia',
       justifications: 'Justificaciones',
@@ -152,6 +270,17 @@ const App = {
     };
     const titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[viewName] || 'CEBAS';
+
+    // Show/hide sidebar and topbar for login
+    const topbar = document.querySelector('.topbar');
+    const sidebar = document.getElementById('sidebar');
+    if (viewName === 'login') {
+      if (topbar) topbar.style.display = 'none';
+      if (sidebar) sidebar.style.visibility = 'hidden';
+    } else if (viewName !== 'setup') {
+      if (topbar) topbar.style.display = '';
+      if (sidebar) sidebar.style.visibility = '';
+    }
 
     // Load view data
     this.loadViewData(viewName);
@@ -239,6 +368,9 @@ const App = {
       connDot.className = 'status-dot online';
       connDot.title = 'Conectado a base de datos';
     }
+
+    // Update auth UI
+    this._updateAuthUI();
 
     // Hide splash
     this.hideSplash();

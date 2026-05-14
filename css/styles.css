@@ -306,6 +306,72 @@ a:hover {
   padding: 20px 0;
 }
 
+/* ====== Login View ====== */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - var(--topbar-height));
+  padding: 20px;
+}
+
+.login-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.login-icon {
+  margin-bottom: 12px;
+}
+
+.login-card h2 {
+  color: var(--color-primary);
+  margin-bottom: 4px;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+
+.login-desc {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 28px;
+}
+
+.login-form .form-group {
+  text-align: left;
+}
+
+.login-form .form-actions {
+  margin-top: 16px;
+}
+
+.login-error {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+  margin-top: 8px;
+}
+
+.auth-user-email {
+  display: block;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.6875rem;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
 .setup-card {
   background: var(--color-bg-card);
   border-radius: var(--radius-lg);

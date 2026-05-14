@@ -7,6 +7,7 @@
 const DB = {
   client: null,
   connected: false,
+  _currentUser: null, // cached auth user
 
   // ---- Hardcoded credentials (auto-connect from any device) ----
   DEFAULT_URL: 'https://zkrtvxuxmwhilhunapoj.supabase.co',
@@ -96,6 +97,46 @@ const DB = {
       return this.init(url, key);
     }
     return false;
+  },
+
+  // ===================== AUTH =====================
+  async signIn(email, password) {
+    if (!this.client) throw new Error('No hay conexión a la base de datos');
+    const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    this._currentUser = data.user;
+    return data.user;
+  },
+
+  async signOut() {
+    if (!this.client) return;
+    const { error } = await this.client.auth.signOut();
+    if (error) console.error('Sign out error:', error);
+    this._currentUser = null;
+  },
+
+  async getSession() {
+    if (!this.client) return null;
+    try {
+      const { data } = await this.client.auth.getSession();
+      this._currentUser = data.session?.user || null;
+      return data.session;
+    } catch (e) {
+      this._currentUser = null;
+      return null;
+    }
+  },
+
+  getCurrentUser() {
+    return this._currentUser;
+  },
+
+  onAuthStateChange(callback) {
+    if (!this.client) return;
+    this.client.auth.onAuthStateChange((event, session) => {
+      this._currentUser = session?.user || null;
+      callback(event, session);
+    });
   },
 
   // ===================== COURSES (cached) =====================

@@ -307,6 +307,14 @@ a:hover {
 }
 
 /* ====== Login View ====== */
+#view-login {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .login-container {
   display: flex;
   justify-content: center;
@@ -370,24 +378,24 @@ a:hover {
 }
 
 .login-form .input-field {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-md);
-  color: #fff;
+  background: #fff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 12px;
+  color: var(--color-text);
   font-size: 1rem;
-  padding: 14px 16px;
+  padding: 14px 18px;
   transition: all var(--transition-fast);
+  height: 52px;
 }
 
 .login-form .input-field::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: #aaa;
 }
 
 .login-form .input-field:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(46, 156, 202, 0.25);
-  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(46, 156, 202, 0.2);
 }
 
 .login-form .form-actions {
@@ -399,7 +407,7 @@ a:hover {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   background: var(--color-accent);
   border-color: var(--color-accent);
   transition: all var(--transition-fast);

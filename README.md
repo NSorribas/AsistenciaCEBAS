@@ -321,6 +321,48 @@ ALTER TABLE salidas_educativas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salida_educativa_cursos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on salidas_educativas" ON salidas_educativas FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on salida_educativa_cursos" ON salida_educativa_cursos FOR ALL USING (true) WITH CHECK (true);
+
+-- ============================================
+-- GRANTs explícitos para Data API (PostgREST)
+-- Requerido a partir del cambio de Supabase (octubre 2025)
+-- Sin estos grants, supabase-js no puede acceder a las tablas
+-- ============================================
+
+-- Acceso al schema public
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT USAGE ON SCHEMA public TO authenticated;
+
+-- Secuencias (por si se usan SERIAL/BIGSERIAL)
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- GRANTs por tabla
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE courses TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE courses TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE subjects TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE subjects TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE students TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE students TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE schedule TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE schedule TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE attendance TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE attendance TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE holidays TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE holidays TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE teacher_absences TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE teacher_absences TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE justifications TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE justifications TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salidas_educativas TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salidas_educativas TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salida_educativa_cursos TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE salida_educativa_cursos TO authenticated;
+
+-- Default privileges: tablas futuras heredan grants automáticamente
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO authenticated;
 ```
 
 ### 3. Configurar la conexión en la app
